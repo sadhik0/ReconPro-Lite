@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ReconPro Lite — Local Excel Reconciliation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F4EE;
+    --paper-line:#E4DFD0;
+    --card:#FFFFFF;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --ink-faint:#9AA0A8;
+    --brass:#B8935F;
+    --brass-soft:#EADFCB;
+    --emerald:#1F6F5C;
+    --emerald-soft:#E3EFEA;
+    --amber:#B8862E;
+    --amber-soft:#F3E9D4;
+    --garnet:#9E3B3B;
+    --garnet-soft:#F3E0DE;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(27,36,48,0.06), 0 8px 24px -12px rgba(27,36,48,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--paper-line) 28px),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:0 0 80px 0;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+
+  .rule-margin{
+    position:fixed;
+    top:0; bottom:0; left:52px;
+    width:1px;
+    background:var(--brass);
+    opacity:0.35;
+    z-index:0;
+  }
+
+  .wrap{
+    max-width:980px;
+    margin:0 auto;
+    padding:0 28px;
+    position:relative;
+    z-index:1;
+  }
+
+  /* HEADER */
+  header.top{
+    padding:52px 0 34px 68px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--brass);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:6px;height:6px;border-radius:50%;
+    background:var(--emerald);
+    box-shadow:0 0 0 3px var(--emerald-soft);
+  }
+  h1.title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:40px;
+    line-height:1.05;
+    margin:4px 0 2px 0;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:15px;
+    max-width:560px;
+    line-height:1.5;
+  }
+  .privacy-strip{
+    margin-top:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    padding:7px 12px 7px 10px;
+    border-radius:100px;
+    width:fit-content;
+    box-shadow:var(--shadow);
+  }
+  .privacy-strip svg{flex:none;}
+
+  /* SECTION */
+  section{
+    margin-left:68px;
+    margin-bottom:34px;
+  }
+  .sec-head{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .sec-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  h2.sec-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--paper-line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+
+  /* UPLOAD */
+  .upload-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  @media (max-width:720px){ .upload-grid{grid-template-columns:1fr;} section,header.top{margin-left:24px;} .rule-margin{display:none;} }
+
+  .dropzone{
+    padding:26px 20px;
+    text-align:left;
+    cursor:pointer;
+    position:relative;
+    transition:border-color .15s ease, background .15s ease;
+    border:1.5px dashed var(--paper-line);
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--brass);
+    background:#FCFAF5;
+  }
+  .dropzone:focus-visible{ outline:2px solid var(--emerald); outline-offset:2px; }
+  .dropzone .dz-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--brass);
+    margin-bottom:8px;
+    display:block;
+  }
+  .dropzone .dz-title{
+    font-weight:600;
+    font-size:15px;
+    margin-bottom:4px;
+  }
+  .dropzone .dz-hint{
+    color:var(--ink-faint);
+    font-size:13px;
+  }
+  .dropzone.loaded{
+    border-style:solid;
+    border-color:var(--emerald);
+    background:var(--emerald-soft);
+  }
+  .dropzone .dz-file{
+    display:none;
+    align-items:center;
+    gap:10px;
+    margin-top:6px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--emerald);
+  }
+  .dropzone.loaded .dz-file{ display:flex; }
+  .dropzone.loaded .dz-hint{ display:none; }
+  input[type=file]{ display:none; }
+
+  /* MAPPING */
+  .mapping-card{ padding:20px; }
+  .map-row{
+    display:grid;
+    grid-template-columns:1fr 28px 1fr 32px;
+    gap:10px;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  select, input[type=number], input[type=text]{
+    width:100%;
+    font-family:'Inter', sans-serif;
+    font-size:13.5px;
+    padding:9px 10px;
+    border-radius:7px;
+    border:1px solid var(--paper-line);
+    background:#FCFBF8;
+    color:var(--ink);
+  }
+  select:focus, input:focus{ outline:2px solid var(--emerald); outline-offset:1px; border-color:var(--emerald); }
+  .map-arrow{ text-align:center; color:var(--brass); font-size:15px; }
+  .map-remove{
+    background:none; border:none; cursor:pointer;
+    color:var(--ink-faint); font-size:16px;
+    width:28px; height:28px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .map-remove:hover{ background:var(--garnet-soft); color:var(--garnet); }
+  .map-actions{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:14px; padding-top:14px; border-top:1px dashed var(--paper-line);
+    flex-wrap:wrap; gap:12px;
+  }
+  .add-map-btn{
+    background:none; border:1px solid var(--brass); color:var(--brass);
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.04em;
+    padding:8px 14px; border-radius:7px; cursor:pointer;
+  }
+  .add-map-btn:hover{ background:var(--brass-soft); }
+  .tolerance-field{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); }
+  .tolerance-field input{ width:70px; }
+
+  /* BUTTONS */
+  .btn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    padding:12px 22px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    transition:transform .1s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn-primary{
+    background:var(--emerald);
+    color:#fff;
+    box-shadow:0 4px 14px -4px rgba(31,111,92,0.55);
+  }
+  .btn-primary:not(:disabled):hover{ transform:translateY(-1px); box-shadow:0 6px 18px -4px rgba(31,111,92,0.6); }
+  .btn-secondary{
+    background:#fff;
+    color:var(--ink);
+    border:1px solid var(--paper-line);
+  }
+  .btn-secondary:not(:disabled):hover{ border-color:var(--brass); color:var(--brass); }
+
+  .run-bar{
+    margin-left:68px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:40px;
+  }
+  .run-note{ font-size:12.5px; color:var(--ink-faint); font-family:'IBM Plex Mono', monospace; }
+
+  /* KPI */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:12px;
+  }
+  @media (max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+  .kpi-card{
+    padding:18px 16px;
+    text-align:left;
+  }
+  .kpi-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:28px;
+    font-weight:600;
+    letter-spacing:-0.02em;
+  }
+  .kpi-label{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+  .kpi-card.exact .kpi-num{ color:var(--emerald); }
+  .kpi-card.partial .kpi-num{ color:var(--amber); }
+  .kpi-card.unmatched .kpi-num{ color:var(--garnet); }
+  .kpi-card.rate .kpi-num{ color:var(--ink); }
+
+  /* RESULTS */
+  .results-toolbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .search-input{ max-width:260px; }
+  .chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    letter-spacing:.03em;
+    padding:7px 13px;
+    border-radius:100px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  .table-card{ overflow:hidden; }
+  .table-scroll{ max-height:440px; overflow:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    position:sticky; top:0;
+    background:#FBFAF6;
+    text-align:left;
+    padding:11px 14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    border-bottom:1px solid var(--paper-line);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 14px;
+    border-bottom:1px solid #F0EDE3;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  tbody tr:hover{ background:#FBFAF5; }
+  .cell-mismatch{ color:var(--garnet); }
+
+  .stamp{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    font-weight:600;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:5px 9px;
+    border-radius:5px;
+    border:1.5px solid currentColor;
+    transform:rotate(-3deg);
+  }
+  .stamp.exact{ color:var(--emerald); background:var(--emerald-soft); }
+  .stamp.partial{ color:var(--amber); background:var(--amber-soft); }
+  .stamp.unmatched{ color:var(--garnet); background:var(--garnet-soft); }
+
+  .empty-state{
+    padding:44px 20px;
+    text-align:center;
+    color:var(--ink-faint);
+    font-size:13.5px;
+  }
+
+  .subsection{ margin-top:18px; }
+  .toggle-link{
+    background:none; border:none; cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; color:var(--brass);
+    padding:0; text-decoration:underline;
+    text-underline-offset:3px;
+  }
+
+  .export-bar{
+    margin-left:68px;
+    display:flex;
+    gap:12px;
+    margin-top:24px;
+    flex-wrap:wrap;
+  }
+
+  footer.foot{
+    margin-left:68px;
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px dashed var(--paper-line);
+    color:var(--ink-faint);
+    font-size:12px;
+    line-height:1.6;
+    max-width:600px;
+  }
+
+  .step-disabled{ opacity:0.45; pointer-events:none; filter:saturate(0.4); }
+
+  .file-count-badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--ink-faint);
+    margin-left:6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="rule-margin"></div>
+
+<div class="wrap">
+
+  <header class="top">
+    <span class="eyebrow">Client-side · No server · No upload</span>
+    <h1 class="title">ReconPro Lite</h1>
+    <p class="subtitle">Reconcile two Excel exports — a company ledger against a bank or GST statement — entirely inside this browser tab. Nothing is transmitted anywhere.</p>
+    <div class="privacy-strip">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Files never leave your machine — all processing happens in RAM and clears when you close the tab
+    </div>
+  </header>
+
+  <!-- STEP 1: UPLOAD -->
+  <section id="step-upload">
+    <div class="sec-head">
+      <span class="sec-label">Step 1</span>
+      <h2 class="sec-title">Load your two files</h2>
+    </div>
+    <div class="upload-grid">
+      <div class="dropzone card" id="dz-company" tabindex="0" role="button" aria-label="Upload company ledger file">
+        <span class="dz-label">File A</span>
+        <div class="dz-title">Company Ledger</div>
+        <div class="dz-hint">Drop an .xlsx or .xls, or click to browse</div>
+        <div class="dz-file"><span>&#10003;</span><span id="dz-company-name"></span></div>
+        <input type="file" id="file-company" accept=".xlsx,.xls" />
+      </div>
+      <div class="dropzone card" id="dz-bank" tabindex="0" role="button" aria-label="Upload bank or GST statement file">
+        <span class="dz-label">File B</span>
+        <div class="dz-title">Bank Statement / GST Report</div>
+        <div class="dz-hint">Drop an .xlsx or .xls, or click to browse</div>
+        <div class="dz-file"><span>&#10003;</span><span id="dz-bank-name"></span></div>
+        <input type="file" id="file-bank" accept=".xlsx,.xls" />
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2: MAPPING -->
+  <section id="step-mapping" class="step-disabled">
+    <div class="sec-head">
+      <span class="sec-label">Step 2</span>
+      <h2 class="sec-title">Map matching columns</h2>
+    </div>
+    <div class="mapping-card card">
+      <div id="map-rows"></div>
+      <div class="map-actions">
+        <button class="add-map-btn" id="add-map-row" type="button">+ Add column pair</button>
+        <label class="tolerance-field">
+          Amount tolerance ±
+          <input type="number" id="tolerance" value="0.01" step="0.01" min="0" />
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- RUN -->
+  <div class="run-bar">
+    <button class="btn btn-primary step-disabled" id="run-btn" type="button">Run reconciliation</button>
+    <span class="run-note" id="run-note">Load both files and map at least one column pair</span>
+  </div>
+
+  <!-- KPI -->
+  <section id="step-kpi" style="display:none;">
+    <div class="sec-head">
+      <span class="sec-label">Summary</span>
+      <h2 class="sec-title">Reconciliation results</h2>
+    </div>
+    <div class="kpi-grid">
+      <div class="card kpi-card total"><div class="kpi-num" id="kpi-total">0</div><div class="kpi-label">Total records</div></div>
+      <div class="card kpi-card exact"><div class="kpi-num" id="kpi-exact">0</div><div class="kpi-label">Exact matches</div></div>
+      <div class="card kpi-card partial"><div class="kpi-num" id="kpi-partial">0</div><div class="kpi-label">Partial matches</div></div>
+      <div class="card kpi-card unmatched"><div class="kpi-num" id="kpi-unmatched">0</div><div class="kpi-label">Unmatched</div></div>
+      <div class="card kpi-card rate"><div class="kpi-num" id="kpi-rate">0%</div><div class="kpi-label">Match rate</div></div>
+    </div>
+  </section>
+
+  <!-- RESULTS TABLE -->
+  <section id="step-results" style="display:none;">
+    <div class="results-toolbar">
+      <input type="text" class="search-input" id="search-box" placeholder="Search records…" />
+      <button class="chip active" data-filter="all">All</button>
+      <button class="chip" data-filter="exact">Exact</button>
+      <button class="chip" data-filter="partial">Partial</button>
+      <button class="chip" data-filter="unmatched">Unmatched</button>
+    </div>
+    <div class="card table-card">
+      <div class="table-scroll">
+        <table>
+          <thead><tr id="results-head"></tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="subsection" id="bank-leftover-wrap" style="display:none;">
+      <button class="toggle-link" id="toggle-bank-leftover">Show bank/GST records with no ledger match ↓</button>
+      <div class="card table-card" id="bank-leftover-card" style="display:none; margin-top:10px;">
+        <div class="table-scroll">
+          <table><thead><tr id="bank-leftover-head"></tr></thead><tbody id="bank-leftover-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="export-bar">
+      <button class="btn btn-primary" id="export-excel">Export Excel</button>
+      <button class="btn btn-secondary" id="export-pdf">Export PDF report</button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    ReconPro Lite stores nothing. There is no LocalStorage, no cookies, no database, and no network request once this page has loaded — closing the tab clears every uploaded row from memory.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const state = {
+    companyRows: [], companyHeaders: [],
+    bankRows: [], bankHeaders: [],
+    mappings: [],
+    results: [],
+    bankLeftover: [],
+    activeFilter: 'all'
+  };
+
+  // ---------- FILE LOADING ----------
+  function setupDropzone(zoneId, inputId, nameId, onLoaded){
+    const zone = document.getElementById(zoneId);
+    const input = document.getElementById(inputId);
+    zone.addEventListener('click', () => input.click());
+    zone.addEventListener('keydown', e => { if(e.key==='Enter' || e.key===' ') { e.preventDefault(); input.click(); } });
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('drag');
+      if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', e => { if(e.target.files.length) handleFile(e.target.files[0]); });
+
+    function handleFile(file){
+      const reader = new FileReader();
+      reader.onload = function(evt){
+        try{
+          const data = new Uint8Array(evt.target.result);
+          const wb = XLSX.read(data, {type:'array', cellDates:true});
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, {defval:"", raw:false});
+          if(!rows.length){ alert('That file has no data rows on the first sheet.'); return; }
+          const headers = Object.keys(rows[0]);
+          zone.classList.add('loaded');
+          document.getElementById(nameId).textContent = file.name + ' · ' + rows.length + ' rows';
+          onLoaded(rows, headers);
+        }catch(err){
+          alert('Could not read that file. Make sure it is a valid .xlsx or .xls export.\n\n' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  }
+
+  setupDropzone('dz-company','file-company','dz-company-name', (rows, headers) => {
+    state.companyRows = rows; state.companyHeaders = headers;
+    afterFileLoad();
+  });
+  setupDropzone('dz-bank','file-bank','dz-bank-name', (rows, headers) => {
+    state.bankRows = rows; state.bankHeaders = headers;
+    afterFileLoad();
+  });
+
+  function afterFileLoad(){
+    if(state.companyHeaders.length && state.bankHeaders.length){
+      document.getElementById('step-mapping').classList.remove('step-disabled');
+      if(state.mappings.length === 0){
+        addMapRow();
+        autoSuggestMappings();
+      }
+      refreshMapSelects();
+      updateRunButton();
+    }
+  }
+
+  // ---------- COLUMN MAPPING ----------
+  function addMapRow(companyVal, bankVal){
+    const id = 'm' + Math.random().toString(36).slice(2,9);
+    state.mappings.push({id, company: companyVal || '', bank: bankVal || ''});
+    renderMapRows();
+  }
+
+  function renderMapRows(){
+    const wrap = document.getElementById('map-rows');
+    wrap.innerHTML = '';
+    state.mappings.forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'map-row';
+      row.innerHTML = `
+        <select data-id="${m.id}" data-side="company">${optionsHtml(state.companyHeaders, m.company)}</select>
+        <div class="map-arrow">&#8596;</div>
+        <select data-id="${m.id}" data-side="bank">${optionsHtml(state.bankHeaders, m.bank)}</select>
+        <button class="map-remove" data-remove="${m.id}" type="button" aria-label="Remove mapping">&times;</button>
+      `;
+      wrap.appendChild(row);
+    });
+    wrap.querySelectorAll('select').forEach(sel => {
+      sel.addEventListener('change', e => {
+        const m = state.mappings.find(x => x.id === e.target.dataset.id);
+        if(m) m[e.target.dataset.side] = e.target.value;
+        updateRunButton();
+      });
+    });
+    wrap.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        state.mappings = state.mappings.filter(x => x.id !== e.target.dataset.remove);
+        renderMapRows();
+        updateRunButton();
+      });
+    });
+    updateRunButton();
+  }
+
+  function optionsHtml(headers, selected){
+    let html = '<option value="">Select column…</option>';
+    headers.forEach(h => {
+      html += `<option value="${escapeHtml(h)}" ${h===selected?'selected':''}>${escapeHtml(h)}</option>`;
+    });
+    return html;
+  }
+
+  function refreshMapSelects(){ renderMapRows(); }
+
+  function autoSuggestMappings(){
+    // best-effort auto match by normalized header name similarity
+    const used = new Set();
+    const first = state.mappings[0];
+    let firstSet = false;
+    state.companyHeaders.forEach(ch => {
+      const norm = normalizeHeader(ch);
+      let best = null, bestScore = 0;
+      state.bankHeaders.forEach(bh => {
+        if(used.has(bh)) return;
+        const s = headerSimilarity(norm, normalizeHeader(bh));
+        if(s > bestScore){ bestScore = s; best = bh; }
+      });
+      if(best && bestScore >= 0.5){
+        used.add(best);
+        if(!firstSet){ first.company = ch; first.bank = best; firstSet = true; }
+        else addMapRow(ch, best);
+      }
+    });
+    if(!firstSet && state.companyHeaders.length && state.bankHeaders.length){
+      first.company = state.companyHeaders[0];
+      first.bank = state.bankHeaders[0];
+    }
+  }
+
+  function normalizeHeader(h){
+    return String(h).toLowerCase().replace(/[^a-z0-9]/g,'');
+  }
+  function headerSimilarity(a,b){
+    if(a===b) return 1;
+    if(a.includes(b) || b.includes(a)) return 0.75;
+    // token overlap fallback
+    return 0;
+  }
+
+  document.getElementById('add-map-row').addEventListener('click', () => addMapRow());
+
+  // ---------- RUN BUTTON STATE ----------
+  function updateRunButton(){
+    const validMappings = state.mappings.filter(m => m.company && m.bank);
+    const ready = state.companyRows.length && state.bankRows.length && validMappings.length > 0;
+    const btn = document.getElementById('run-btn');
+    const note = document.getElementById('run-note');
+    if(ready){
+      btn.classList.remove('step-disabled');
+      btn.disabled = false;
+      note.textContent = validMappings.length + ' column pair(s) mapped · ' + state.companyRows.length + ' vs ' + state.bankRows.length + ' records';
+    } else {
+      btn.classList.add('step-disabled');
+      btn.disabled = true;
+      note.textContent = 'Load both files and map at least one column pair';
+    }
+  }
+
+  // ---------- RECONCILIATION ENGINE ----------
+  function normalizeValue(v){
+    if(v === null || v === undefined) return '';
+    if(v instanceof Date) return v.toISOString().slice(0,10);
+    return String(v).trim().toLowerCase().replace(/\s+/g,' ');
+  }
+  function isNumeric(v){
+    if(v === null || v === undefined || v === '') return false;
+    return !isNaN(parseFloat(String(v).replace(/[,₹$]/g,''))) && isFinite(String(v).replace(/[,₹$]/g,''));
+  }
+  function toNumber(v){
+    return parseFloat(String(v).replace(/[,₹$]/g,''));
+  }
+
+  function fieldsMatch(a, b, tolerance){
+    if(isNumeric(a) && isNumeric(b)){
+      return Math.abs(toNumber(a) - toNumber(b)) <= tolerance;
+    }
+    return normalizeValue(a) === normalizeValue(b);
+  }
+
+  document.getElementById('run-btn').addEventListener('click', runReconciliation);
+
+  function runReconciliation(){
+    const validMappings = state.mappings.filter(m => m.company && m.bank);
+    const tolerance = parseFloat(document.getElementById('tolerance').value) || 0;
+
+    const pairs = [];
+    state.companyRows.forEach((crow, ci) => {
+      state.bankRows.forEach((brow, bi) => {
+        let matchedFields = 0;
+        validMappings.forEach(m => {
+          if(fieldsMatch(crow[m.company], brow[m.bank], tolerance)) matchedFields++;
+        });
+        const score = validMappings.length ? matchedFields / validMappings.length : 0;
+        if(score > 0) pairs.push({ci, bi, score, matchedFields});
+      });
+    });
+    pairs.sort((a,b) => b.score - a.score || b.matchedFields - a.matchedFields);
+
+    const companyAssigned = new Array(state.companyRows.length).fill(null);
+    const bankUsed = new Array(state.bankRows.length).fill(false);
+
+    pairs.forEach(p => {
+      if(companyAssigned[p.ci] === null && !bankUsed[p.bi]){
+        companyAssigned[p.ci] = p;
+        bankUsed[p.bi] = true;
+      }
+    });
+
+    const results = state.companyRows.map((crow, ci) => {
+      const assign = companyAssigned[ci];
+      const scorePct = assign ? Math.round(assign.score * 100) : 0;
+      let status = 'unmatched';
+      if(assign && scorePct === 100) status = 'exact';
+      else if(assign && scorePct > 0) status = 'partial';
+      return {
+        company: crow,
+        bank: assign ? state.bankRows[assign.bi] : null,
+        score: scorePct,
+        status
+      };
+    });
+
+    const bankLeftover = state.bankRows.filter((row, bi) => !bankUsed[bi]);
+
+    state.results = results;
+    state.bankLeftover = bankLeftover;
+
+    renderKPIs();
+    renderResultsTable();
+    renderBankLeftover();
+
+    document.getElementById('step-kpi').style.display = '';
+    document.getElementById('step-results').style.display = '';
+    document.getElementById('step-kpi').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  // ---------- RENDER KPI ----------
+  function renderKPIs(){
+    const total = state.results.length;
+    const exact = state.results.filter(r => r.status==='exact').length;
+    const partial = state.results.filter(r => r.status==='partial').length;
+    const unmatched = state.results.filter(r => r.status==='unmatched').length;
+    const rate = total ? Math.round(((exact+partial)/total)*100) : 0;
+    document.getElementById('kpi-total').textContent = total;
+    document.getElementById('kpi-exact').textContent = exact;
+    document.getElementById('kpi-partial').textContent = partial;
+    document.getElementById('kpi-unmatched').textContent = unmatched;
+    document.getElementById('kpi-rate').textContent = rate + '%';
+  }
+
+  // ---------- RENDER RESULTS TABLE ----------
+  function renderResultsTable(){
+    const validMappings = state.mappings.filter(m => m.company && m.bank);
+    const head = document.getElementById('results-head');
+    head.innerHTML = '<th>Status</th><th>Score</th>' +
+      validMappings.map(m => `<th>${escapeHtml(m.company)}</th>`).join('') +
+      validMappings.map(m => `<th>${escapeHtml(m.bank)} (bank)</th>`).join('');
+
+    renderResultsBody();
+  }
+
+  function matchesFilter(r){
+    if(state.activeFilter === 'all') return true;
+    return r.status === state.activeFilter;
+  }
+  function matchesSearch(r, term){
+    if(!term) return true;
+    const hay = JSON.stringify(r.company) + JSON.stringify(r.bank||{});
+    return hay.toLowerCase().includes(term);
+  }
+
+  function renderResultsBody(){
+    const validMappings = state.mappings.filter(m => m.company && m.bank);
+    const body = document.getElementById('results-body');
+    const term = document.getElementById('search-box').value.trim().toLowerCase();
+    const rows = state.results.filter(r => matchesFilter(r) && matchesSearch(r, term));
+
+    if(!rows.length){
+      body.innerHTML = `<tr><td colspan="${2+validMappings.length*2}"><div class="empty-state">No records match this filter.</div></td></tr>`;
+      return;
+    }
+
+    body.innerHTML = rows.map(r => {
+      const statusHtml = `<span class="stamp ${r.status}">${r.status}</span>`;
+      const scoreHtml = r.score + '%';
+      const companyCells = validMappings.map(m => `<td>${escapeHtml(fmt(r.company[m.company]))}</td>`).join('');
+      const bankCells = validMappings.map(m => {
+        const bv = r.bank ? r.bank[m.bank] : '';
+        const cv = r.company[m.company];
+        const mismatch = r.bank && !fieldsMatch(cv, bv, parseFloat(document.getElementById('tolerance').value)||0);
+        return `<td class="${mismatch?'cell-mismatch':''}">${r.bank ? escapeHtml(fmt(bv)) : '—'}</td>`;
+      }).join('');
+      return `<tr><td>${statusHtml}</td><td>${scoreHtml}</td>${companyCells}${bankCells}</tr>`;
+    }).join('');
+  }
+
+  function fmt(v){
+    if(v === null || v === undefined) return '';
+    if(v instanceof Date) return v.toISOString().slice(0,10);
+    return String(v);
+  }
+
+  document.getElementById('search-box').addEventListener('input', renderResultsBody);
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.activeFilter = chip.dataset.filter;
+      renderResultsBody();
+    });
+  });
+
+  // ---------- BANK LEFTOVER ----------
+  function renderBankLeftover(){
+    const wrap = document.getElementById('bank-leftover-wrap');
+    const head = document.getElementById('bank-leftover-head');
+    const body = document.getElementById('bank-leftover-body');
+    if(!state.bankLeftover.length){ wrap.style.display='none'; return; }
+    wrap.style.display='';
+    document.getElementById('toggle-bank-leftover').textContent =
+      `Show bank/GST records with no ledger match (${state.bankLeftover.length}) ↓`;
+    head.innerHTML = state.bankHeaders.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+    body.innerHTML = state.bankLeftover.map(row =>
+      '<tr>' + state.bankHeaders.map(h => `<td>${escapeHtml(fmt(row[h]))}</td>`).join('') + '</tr>'
+    ).join('');
+  }
+  document.getElementById('toggle-bank-leftover').addEventListener('click', () => {
+    const card = document.getElementById('bank-leftover-card');
+    const btn = document.getElementById('toggle-bank-leftover');
+    const showing = card.style.display !== 'none';
+    card.style.display = showing ? 'none' : '';
+    btn.textContent = btn.textContent.replace(showing ? '↑' : '↓', showing ? '↓' : '↑');
+  });
+
+  // ---------- EXPORT EXCEL ----------
+  document.getElementById('export-excel').addEventListener('click', () => {
+    const validMappings = state.mappings.filter(m => m.company && m.bank);
+    const exportRows = state.results.map(r => {
+      const row = {};
+      state.companyHeaders.forEach(h => row['Ledger: ' + h] = fmt(r.company[h]));
+      if(r.bank){ state.bankHeaders.forEach(h => row['Bank: ' + h] = fmt(r.bank[h])); }
+      row['Match Status'] = r.status;
+      row['Match Score'] = r.score + '%';
+      return row;
+    });
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(exportRows);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Reconciliation');
+
+    if(state.bankLeftover.length){
+      const ws2 = XLSX.utils.json_to_sheet(state.bankLeftover);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Unmatched Bank Records');
+    }
+    const summaryRows = [
+      {Metric:'Total Ledger Records', Value: state.results.length},
+      {Metric:'Exact Matches', Value: state.results.filter(r=>r.status==='exact').length},
+      {Metric:'Partial Matches', Value: state.results.filter(r=>r.status==='partial').length},
+      {Metric:'Unmatched', Value: state.results.filter(r=>r.status==='unmatched').length},
+      {Metric:'Unmatched Bank Records', Value: state.bankLeftover.length},
+    ];
+    const ws3 = XLSX.utils.json_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, ws3, 'Summary');
+
+    XLSX.writeFile(wb, 'reconciliation-result.xlsx');
+  });
+
+  // ---------- EXPORT PDF ----------
+  document.getElementById('export-pdf').addEventListener('click', () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'landscape'});
+    const validMappings = state.mappings.filter(m => m.company && m.bank);
+
+    doc.setFontSize(16);
+    doc.text('ReconPro Lite — Reconciliation Report', 14, 16);
+    doc.setFontSize(10);
+    doc.text('Generated ' + new Date().toLocaleString(), 14, 22);
+
+    const total = state.results.length;
+    const exact = state.results.filter(r => r.status==='exact').length;
+    const partial = state.results.filter(r => r.status==='partial').length;
+    const unmatched = state.results.filter(r => r.status==='unmatched').length;
+    const rate = total ? Math.round(((exact+partial)/total)*100) : 0;
+
+    doc.text(`Total: ${total}   Exact: ${exact}   Partial: ${partial}   Unmatched: ${unmatched}   Match rate: ${rate}%`, 14, 29);
+
+    const head = [['Status','Score', ...validMappings.map(m=>m.company), ...validMappings.map(m=>m.bank + ' (bank)')]];
+    const body = state.results.map(r => [
+      r.status, r.score+'%',
+      ...validMappings.map(m => fmt(r.company[m.company])),
+      ...validMappings.map(m => r.bank ? fmt(r.bank[m.bank]) : '—')
+    ]);
+
+    doc.autoTable({ head, body, startY:34, styles:{fontSize:8}, headStyles:{fillColor:[27,36,48]} });
+    doc.save('reconciliation-report.pdf');
+  });
+
+  // ---------- UTIL ----------
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+})();
+</script>
+</body>
+</html>
