@@ -6,583 +6,798 @@
 <title>ReconPro Lite — Local Excel Reconciliation</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --paper:#F6F4EE;
-    --paper-line:#E4DFD0;
-    --card:#FFFFFF;
-    --ink:#1B2430;
-    --ink-soft:#5B6472;
-    --ink-faint:#9AA0A8;
-    --brass:#B8935F;
-    --brass-soft:#EADFCB;
-    --emerald:#1F6F5C;
-    --emerald-soft:#E3EFEA;
-    --amber:#B8862E;
-    --amber-soft:#F3E9D4;
-    --garnet:#9E3B3B;
-    --garnet-soft:#F3E0DE;
-    --radius:10px;
-    --shadow: 0 1px 2px rgba(27,36,48,0.06), 0 8px 24px -12px rgba(27,36,48,0.18);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:
-      repeating-linear-gradient(to bottom, transparent 0px, transparent 27px, var(--paper-line) 28px),
-      var(--paper);
-    color:var(--ink);
-    font-family:'Inter', sans-serif;
-    min-height:100vh;
-    padding:0 0 80px 0;
-  }
-  @media (prefers-reduced-motion: reduce){
-    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
-  }
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════ */
+:root{
+  --paper:#F6F4EE;
+  --paper-line:#E4DFD0;
+  --card:#FFFFFF;
+  --ink:#1B2430;
+  --ink-soft:#5B6472;
+  --ink-faint:#9AA0A8;
+  --brass:#B8935F;
+  --brass-soft:#EADFCB;
+  --emerald:#1F6F5C;
+  --emerald-soft:#E3EFEA;
+  --amber:#B8862E;
+  --amber-soft:#F3E9D4;
+  --garnet:#9E3B3B;
+  --garnet-soft:#F3E0DE;
+  --sapphire:#2D5FA8;
+  --sapphire-soft:#DDE8F8;
+  --violet:#5B3FA8;
+  --violet-soft:#EAE5F8;
+  --radius:12px;
+  --radius-sm:8px;
+  --shadow-sm:0 1px 3px rgba(27,36,48,0.07),0 4px 12px -6px rgba(27,36,48,0.12);
+  --shadow:0 2px 6px rgba(27,36,48,0.07),0 12px 32px -10px rgba(27,36,48,0.18);
+  --shadow-lg:0 4px 16px rgba(27,36,48,0.09),0 24px 56px -12px rgba(27,36,48,0.22);
+  --margin-left:76px;
+  --transition:0.22s cubic-bezier(0.4,0,0.2,1);
+}
 
-  .rule-margin{
-    position:fixed;
-    top:0; bottom:0; left:52px;
-    width:1px;
-    background:var(--brass);
-    opacity:0.35;
-    z-index:0;
-  }
+/* ═══════════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:
+    repeating-linear-gradient(to bottom,transparent 0px,transparent 27px,var(--paper-line) 28px),
+    var(--paper);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  padding-bottom:100px;
+  overflow-x:hidden;
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:0.001ms!important;transition-duration:0.001ms!important;}
+}
 
-  .wrap{
-    max-width:980px;
-    margin:0 auto;
-    padding:0 28px;
-    position:relative;
-    z-index:1;
-  }
+/* ═══════════════════════════════════════════════════
+   LOADING OVERLAY
+═══════════════════════════════════════════════════ */
+#loading-overlay{
+  position:fixed;inset:0;
+  background:rgba(246,244,238,0.92);
+  backdrop-filter:blur(6px);
+  z-index:9999;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:20px;
+  opacity:0;pointer-events:none;
+  transition:opacity var(--transition);
+}
+#loading-overlay.visible{opacity:1;pointer-events:all;}
+.loader-ring{
+  width:52px;height:52px;
+  border:3px solid var(--paper-line);
+  border-top-color:var(--emerald);
+  border-right-color:var(--brass);
+  border-radius:50%;
+  animation:spin 0.9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loader-text{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  animation:pulse-text 1.4s ease-in-out infinite;
+}
+@keyframes pulse-text{0%,100%{opacity:.5;}50%{opacity:1;}}
 
-  /* HEADER */
-  header.top{
-    padding:52px 0 34px 68px;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-  .eyebrow{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.14em;
-    text-transform:uppercase;
-    color:var(--brass);
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  .eyebrow::before{
-    content:"";
-    width:6px;height:6px;border-radius:50%;
-    background:var(--emerald);
-    box-shadow:0 0 0 3px var(--emerald-soft);
-  }
-  h1.title{
-    font-family:'Fraunces', serif;
-    font-weight:600;
-    font-size:40px;
-    line-height:1.05;
-    margin:4px 0 2px 0;
-    letter-spacing:-0.01em;
-  }
-  .subtitle{
-    color:var(--ink-soft);
-    font-size:15px;
-    max-width:560px;
-    line-height:1.5;
-  }
-  .privacy-strip{
-    margin-top:14px;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11.5px;
-    color:var(--ink-soft);
-    background:var(--card);
-    border:1px solid var(--paper-line);
-    padding:7px 12px 7px 10px;
-    border-radius:100px;
-    width:fit-content;
-    box-shadow:var(--shadow);
-  }
-  .privacy-strip svg{flex:none;}
+/* ═══════════════════════════════════════════════════
+   MARGIN RULE
+═══════════════════════════════════════════════════ */
+.rule-margin{
+  position:fixed;top:0;bottom:0;left:56px;
+  width:1px;background:var(--brass);opacity:0.28;
+  z-index:0;pointer-events:none;
+}
+@media(max-width:640px){.rule-margin{display:none;}}
 
-  /* INSTRUCTIONS */
-  .instructions{
-    margin-left:68px;
-    margin-bottom:34px;
-  }
-  .instructions-card{
-    padding:20px 24px;
-    border-left:3px solid var(--brass);
-    border-radius:var(--radius);
-  }
-  .instructions-head{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:.1em;
-    text-transform:uppercase;
-    color:var(--brass);
-    margin-bottom:12px;
-  }
-  .instructions-list{
-    list-style:none;
-    margin:0;
-    padding:0;
-    display:flex;
-    flex-direction:column;
-    gap:9px;
-  }
-  .instructions-list li{
-    display:flex;
-    gap:10px;
-    align-items:flex-start;
-    font-size:13.5px;
-    color:var(--ink);
-    line-height:1.5;
-  }
-  .instructions-list li .num{
-    flex:none;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    color:var(--brass);
-    background:var(--brass-soft);
-    width:20px; height:20px;
-    border-radius:5px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin-top:1px;
-  }
-  .instructions-list li.tip{
-    padding-top:9px;
-    margin-top:2px;
-    border-top:1px dashed var(--paper-line);
-    color:var(--ink-soft);
-    font-size:13px;
-  }
-  .instructions-list li.tip .num{
-    background:var(--emerald-soft);
-    color:var(--emerald);
-  }
+/* ═══════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════ */
+.wrap{
+  max-width:1020px;
+  margin:0 auto;
+  padding:0 20px;
+  position:relative;z-index:1;
+}
 
-  /* SECTION */
-  section{
-    margin-left:68px;
-    margin-bottom:34px;
-  }
-  .sec-head{
-    display:flex;
-    align-items:baseline;
-    gap:10px;
-    margin-bottom:14px;
-  }
-  .sec-label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.1em;
-    text-transform:uppercase;
-    color:var(--ink-faint);
-  }
-  h2.sec-title{
-    font-family:'Fraunces', serif;
-    font-weight:600;
-    font-size:20px;
-    margin:0;
-  }
-  .card{
-    background:var(--card);
-    border:1px solid var(--paper-line);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-  }
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+header.top{
+  padding:52px 0 36px var(--margin-left);
+  display:flex;flex-direction:column;gap:8px;
+  animation:fade-up .5s ease both;
+}
+@keyframes fade-up{
+  from{opacity:0;transform:translateY(14px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--brass);
+  display:flex;align-items:center;gap:8px;
+}
+.eyebrow::before{
+  content:"";width:7px;height:7px;border-radius:50%;
+  background:var(--emerald);
+  box-shadow:0 0 0 3px var(--emerald-soft);
+  animation:pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{box-shadow:0 0 0 3px var(--emerald-soft);}
+  50%{box-shadow:0 0 0 6px rgba(31,111,92,0.12);}
+}
+h1.title{
+  font-family:'Fraunces',serif;
+  font-weight:600;font-size:clamp(32px,5vw,46px);
+  line-height:1.05;letter-spacing:-.01em;
+  margin:4px 0 2px;
+}
+.subtitle{
+  color:var(--ink-soft);font-size:15px;
+  max-width:580px;line-height:1.6;
+}
+.privacy-strip{
+  margin-top:16px;
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+  color:var(--ink-soft);
+  background:var(--card);
+  border:1px solid var(--paper-line);
+  padding:8px 14px 8px 11px;
+  border-radius:100px;width:fit-content;
+  box-shadow:var(--shadow-sm);
+  transition:box-shadow var(--transition);
+}
+.privacy-strip:hover{box-shadow:var(--shadow);}
+.privacy-strip svg{flex:none;}
 
-  /* UPLOAD */
-  .upload-grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:16px;
-  }
-  @media (max-width:720px){ .upload-grid{grid-template-columns:1fr;} section,header.top{margin-left:24px;} .rule-margin{display:none;} }
+/* ═══════════════════════════════════════════════════
+   INSTRUCTIONS
+═══════════════════════════════════════════════════ */
+.instructions{
+  margin-left:var(--margin-left);margin-bottom:36px;
+  animation:fade-up .5s .1s ease both;
+}
+.instructions-card{
+  padding:22px 26px;
+  border-left:3px solid var(--brass);
+  border-radius:var(--radius);
+  background:var(--card);
+  border-top:1px solid var(--paper-line);
+  border-right:1px solid var(--paper-line);
+  border-bottom:1px solid var(--paper-line);
+  box-shadow:var(--shadow-sm);
+}
+.instructions-head{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--brass);margin-bottom:14px;
+}
+.instructions-list{
+  list-style:none;display:flex;flex-direction:column;gap:10px;
+}
+.instructions-list li{
+  display:flex;gap:11px;align-items:flex-start;
+  font-size:13.5px;color:var(--ink);line-height:1.5;
+}
+.num{
+  flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--brass);background:var(--brass-soft);
+  width:22px;height:22px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;
+  font-weight:600;
+}
+.instructions-list li.tip{
+  padding-top:10px;margin-top:2px;
+  border-top:1px dashed var(--paper-line);
+  color:var(--ink-soft);font-size:13px;
+}
+.instructions-list li.tip .num{background:var(--emerald-soft);color:var(--emerald);}
 
-  .dropzone{
-    padding:26px 20px;
-    text-align:left;
-    cursor:pointer;
-    position:relative;
-    transition:border-color .15s ease, background .15s ease;
-    border:1.5px dashed var(--paper-line);
-  }
-  .dropzone:hover, .dropzone.drag{
-    border-color:var(--brass);
-    background:#FCFAF5;
-  }
-  .dropzone:focus-visible{ outline:2px solid var(--emerald); outline-offset:2px; }
-  .dropzone .dz-label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.08em;
-    text-transform:uppercase;
-    color:var(--brass);
-    margin-bottom:8px;
-    display:block;
-  }
-  .dropzone .dz-title{
-    font-weight:600;
-    font-size:15px;
-    margin-bottom:4px;
-  }
-  .dropzone .dz-hint{
-    color:var(--ink-faint);
-    font-size:13px;
-  }
-  .dropzone.loaded{
-    border-style:solid;
-    border-color:var(--emerald);
-    background:var(--emerald-soft);
-  }
-  .dropzone .dz-file{
-    display:none;
-    align-items:center;
-    gap:10px;
-    margin-top:6px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12.5px;
-    color:var(--emerald);
-  }
-  .dropzone.loaded .dz-file{ display:flex; }
-  .dropzone.loaded .dz-hint{ display:none; }
-  input[type=file]{ display:none; }
+/* ═══════════════════════════════════════════════════
+   SECTION
+═══════════════════════════════════════════════════ */
+section{margin-left:var(--margin-left);margin-bottom:36px;}
+.sec-head{
+  display:flex;align-items:baseline;gap:10px;margin-bottom:16px;
+}
+.sec-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);
+}
+h2.sec-title{
+  font-family:'Fraunces',serif;font-weight:600;font-size:22px;margin:0;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--paper-line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);
+}
 
-  /* MAPPING */
-  .mapping-card{ padding:20px; }
-  .map-row{
-    display:grid;
-    grid-template-columns:1fr 28px 1fr 32px;
-    gap:10px;
-    align-items:center;
-    margin-bottom:10px;
-  }
-  select, input[type=number], input[type=text]{
-    width:100%;
-    font-family:'Inter', sans-serif;
-    font-size:13.5px;
-    padding:9px 10px;
-    border-radius:7px;
-    border:1px solid var(--paper-line);
-    background:#FCFBF8;
-    color:var(--ink);
-  }
-  select:focus, input:focus{ outline:2px solid var(--emerald); outline-offset:1px; border-color:var(--emerald); }
-  .map-arrow{ text-align:center; color:var(--brass); font-size:15px; }
-  .map-remove{
-    background:none; border:none; cursor:pointer;
-    color:var(--ink-faint); font-size:16px;
-    width:28px; height:28px; border-radius:6px;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .map-remove:hover{ background:var(--garnet-soft); color:var(--garnet); }
-  .map-actions{
-    display:flex; justify-content:space-between; align-items:center;
-    margin-top:14px; padding-top:14px; border-top:1px dashed var(--paper-line);
-    flex-wrap:wrap; gap:12px;
-  }
-  .add-map-btn{
-    background:none; border:1px solid var(--brass); color:var(--brass);
-    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.04em;
-    padding:8px 14px; border-radius:7px; cursor:pointer;
-  }
-  .add-map-btn:hover{ background:var(--brass-soft); }
-  .tolerance-field{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); }
-  .tolerance-field input{ width:70px; }
+/* ═══════════════════════════════════════════════════
+   UPLOAD
+═══════════════════════════════════════════════════ */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:680px){.upload-grid{grid-template-columns:1fr;}}
 
-  /* BUTTONS */
-  .btn{
-    font-family:'Inter', sans-serif;
-    font-weight:600;
-    font-size:14px;
-    padding:12px 22px;
-    border-radius:8px;
-    border:none;
-    cursor:pointer;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    transition:transform .1s ease, box-shadow .15s ease, background .15s ease;
-  }
-  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
-  .btn-primary{
-    background:var(--emerald);
-    color:#fff;
-    box-shadow:0 4px 14px -4px rgba(31,111,92,0.55);
-  }
-  .btn-primary:not(:disabled):hover{ transform:translateY(-1px); box-shadow:0 6px 18px -4px rgba(31,111,92,0.6); }
-  .btn-secondary{
-    background:#fff;
-    color:var(--ink);
-    border:1px solid var(--paper-line);
-  }
-  .btn-secondary:not(:disabled):hover{ border-color:var(--brass); color:var(--brass); }
+.dropzone{
+  padding:28px 22px;text-align:left;cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:border-color var(--transition),background var(--transition),
+             box-shadow var(--transition),transform var(--transition);
+  border:1.5px dashed var(--paper-line);
+  border-radius:var(--radius);
+  background:var(--card);
+}
+.dropzone::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 20%,rgba(184,147,95,0.06),transparent 60%);
+  opacity:0;transition:opacity var(--transition);
+}
+.dropzone:hover::before,.dropzone.drag::before{opacity:1;}
+.dropzone:hover,.dropzone.drag{
+  border-color:var(--brass);
+  background:#FDFBF7;
+  box-shadow:var(--shadow);
+  transform:translateY(-2px);
+}
+.dropzone:focus-visible{outline:2px solid var(--emerald);outline-offset:2px;}
+.dropzone .dz-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:var(--brass-soft);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;
+  transition:transform var(--transition),background var(--transition);
+}
+.dropzone:hover .dz-icon{transform:scale(1.08);background:var(--brass);}
+.dropzone:hover .dz-icon svg{stroke:#fff;}
+.dropzone .dz-label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--brass);
+  margin-bottom:6px;display:block;
+}
+.dropzone .dz-title{font-weight:700;font-size:15px;margin-bottom:5px;}
+.dropzone .dz-hint{color:var(--ink-faint);font-size:13px;line-height:1.5;}
+.dropzone.loaded{
+  border-style:solid;border-color:var(--emerald);
+  background:var(--emerald-soft);transform:translateY(0);
+}
+.dropzone.loaded .dz-icon{background:var(--emerald);}
+.dropzone.loaded .dz-icon svg{stroke:#fff;}
+.dropzone .dz-file{
+  display:none;align-items:center;gap:10px;margin-top:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--emerald);
+}
+.dropzone.loaded .dz-file{display:flex;}
+.dropzone.loaded .dz-hint{display:none;}
+.dropzone .dz-progress{
+  position:absolute;bottom:0;left:0;height:3px;
+  background:var(--emerald);width:0%;
+  transition:width .4s ease;border-radius:0 0 0 var(--radius);
+}
+input[type=file]{display:none;}
 
-  .run-bar{
-    margin-left:68px;
-    display:flex;
-    align-items:center;
-    gap:16px;
-    margin-bottom:40px;
-  }
-  .run-note{ font-size:12.5px; color:var(--ink-faint); font-family:'IBM Plex Mono', monospace; }
+/* ═══════════════════════════════════════════════════
+   MAPPING
+═══════════════════════════════════════════════════ */
+.mapping-card{padding:22px;}
+.map-rows-wrap{display:flex;flex-direction:column;gap:10px;}
+.map-row{
+  display:grid;
+  grid-template-columns:1fr 32px 1fr 36px;
+  gap:10px;align-items:center;
+  animation:fade-up .25s ease both;
+  padding:12px 14px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--paper-line);
+  background:#FDFCF9;
+  transition:border-color var(--transition),box-shadow var(--transition);
+}
+.map-row:hover{border-color:var(--brass-soft);box-shadow:var(--shadow-sm);}
+@media(max-width:520px){
+  .map-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
+  .map-row .map-arrow{display:none;}
+  .map-row .map-remove{grid-column:2;grid-row:1;justify-self:end;}
+}
+select,input[type=number],input[type=text]{
+  width:100%;font-family:'Inter',sans-serif;font-size:13.5px;
+  padding:9px 11px;border-radius:var(--radius-sm);
+  border:1px solid var(--paper-line);background:#FCFBF8;color:var(--ink);
+  transition:border-color var(--transition),box-shadow var(--transition);
+  -webkit-appearance:none;
+}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239AA0A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;}
+select:focus,input:focus{
+  outline:none;border-color:var(--emerald);
+  box-shadow:0 0 0 3px rgba(31,111,92,0.12);
+}
+.map-arrow{text-align:center;color:var(--brass);font-size:18px;line-height:1;}
+.map-remove{
+  background:none;border:none;cursor:pointer;
+  color:var(--ink-faint);font-size:17px;
+  width:32px;height:32px;border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;
+  transition:background var(--transition),color var(--transition);
+}
+.map-remove:hover{background:var(--garnet-soft);color:var(--garnet);}
+.map-actions{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:16px;padding-top:16px;
+  border-top:1px dashed var(--paper-line);
+  flex-wrap:wrap;gap:12px;
+}
+.add-map-btn{
+  background:none;border:1px solid var(--brass);color:var(--brass);
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;
+  padding:9px 16px;border-radius:var(--radius-sm);cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+  transition:background var(--transition),transform var(--transition);
+}
+.add-map-btn:hover{background:var(--brass-soft);transform:translateY(-1px);}
+.tolerance-field{
+  display:flex;align-items:center;gap:8px;
+  font-size:12.5px;color:var(--ink-soft);
+  flex-wrap:wrap;
+}
+.tolerance-field input{width:80px;}
 
-  /* KPI */
-  .kpi-grid{
-    display:grid;
-    grid-template-columns:repeat(5, 1fr);
-    gap:12px;
-  }
-  @media (max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
-  .kpi-card{
-    padding:18px 16px;
-    text-align:left;
-  }
-  .kpi-num{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:28px;
-    font-weight:600;
-    letter-spacing:-0.02em;
-  }
-  .kpi-label{
-    font-size:11.5px;
-    color:var(--ink-soft);
-    margin-top:4px;
-    text-transform:uppercase;
-    letter-spacing:.06em;
-  }
-  .kpi-card.exact .kpi-num{ color:var(--emerald); }
-  .kpi-card.partial .kpi-num{ color:var(--amber); }
-  .kpi-card.unmatched .kpi-num{ color:var(--garnet); }
-  .kpi-card.rate .kpi-num{ color:var(--ink); }
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn{
+  font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
+  padding:13px 24px;border-radius:var(--radius-sm);border:none;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;
+  transition:transform var(--transition),box-shadow var(--transition),background var(--transition),opacity var(--transition);
+  white-space:nowrap;
+}
+.btn:disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.btn-primary{
+  background:var(--emerald);color:#fff;
+  box-shadow:0 4px 16px -4px rgba(31,111,92,0.5);
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 22px -4px rgba(31,111,92,0.55);}
+.btn-primary:active{transform:translateY(0);box-shadow:0 2px 8px -2px rgba(31,111,92,0.4);}
+.btn-secondary{
+  background:#fff;color:var(--ink);
+  border:1px solid var(--paper-line);
+  box-shadow:var(--shadow-sm);
+}
+.btn-secondary:hover{border-color:var(--brass);color:var(--brass);transform:translateY(-1px);box-shadow:var(--shadow);}
+.btn-ghost{
+  background:none;border:none;color:var(--ink-soft);
+  font-size:13px;padding:8px 12px;cursor:pointer;border-radius:var(--radius-sm);
+  transition:background var(--transition),color var(--transition);
+}
+.btn-ghost:hover{background:var(--paper-line);color:var(--ink);}
 
-  /* RESULTS */
-  .results-toolbar{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    flex-wrap:wrap;
-    margin-bottom:14px;
-  }
-  .search-input{ max-width:260px; }
-  .chip{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11.5px;
-    letter-spacing:.03em;
-    padding:7px 13px;
-    border-radius:100px;
-    border:1px solid var(--paper-line);
-    background:#fff;
-    cursor:pointer;
-    color:var(--ink-soft);
-  }
-  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+/* ═══════════════════════════════════════════════════
+   RUN BAR
+═══════════════════════════════════════════════════ */
+.run-bar{
+  margin-left:var(--margin-left);
+  display:flex;align-items:center;gap:16px;
+  margin-bottom:44px;flex-wrap:wrap;
+}
+.run-note{
+  font-size:12.5px;color:var(--ink-faint);
+  font-family:'IBM Plex Mono',monospace;
+  line-height:1.5;
+}
 
-  .table-card{ overflow:hidden; }
-  .table-scroll{ max-height:440px; overflow:auto; }
-  table{ width:100%; border-collapse:collapse; font-size:13px; }
-  thead th{
-    position:sticky; top:0;
-    background:#FBFAF6;
-    text-align:left;
-    padding:11px 14px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    letter-spacing:.06em;
-    text-transform:uppercase;
-    color:var(--ink-soft);
-    border-bottom:1px solid var(--paper-line);
-    white-space:nowrap;
-  }
-  tbody td{
-    padding:10px 14px;
-    border-bottom:1px solid #F0EDE3;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12.5px;
-    color:var(--ink);
-    white-space:nowrap;
-  }
-  tbody tr:hover{ background:#FBFAF5; }
-  .cell-mismatch{ color:var(--garnet); }
+/* ═══════════════════════════════════════════════════
+   KPI CARDS
+═══════════════════════════════════════════════════ */
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:12px;
+}
+@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:540px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
 
-  .stamp{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:9.5px;
-    font-weight:600;
-    letter-spacing:.08em;
-    text-transform:uppercase;
-    padding:5px 9px;
-    border-radius:5px;
-    border:1.5px solid currentColor;
-    transform:rotate(-3deg);
-  }
-  .stamp.exact{ color:var(--emerald); background:var(--emerald-soft); }
-  .stamp.partial{ color:var(--amber); background:var(--amber-soft); }
-  .stamp.unmatched{ color:var(--garnet); background:var(--garnet-soft); }
+.kpi-card{
+  padding:20px 18px;
+  border-radius:var(--radius);
+  position:relative;overflow:hidden;
+  transition:transform var(--transition),box-shadow var(--transition);
+  animation:kpi-pop .4s ease both;
+}
+@keyframes kpi-pop{
+  from{opacity:0;transform:scale(.92);}
+  to{opacity:1;transform:scale(1);}
+}
+.kpi-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);}
+.kpi-card::after{
+  content:"";position:absolute;
+  top:-20px;right:-20px;
+  width:70px;height:70px;border-radius:50%;
+  opacity:.06;
+}
+.kpi-card.total::after{background:var(--ink);}
+.kpi-card.exact::after{background:var(--emerald);}
+.kpi-card.partial::after{background:var(--amber);}
+.kpi-card.ledger-only::after{background:var(--sapphire);}
+.kpi-card.bank-only::after{background:var(--violet);}
+.kpi-card.rate::after{background:var(--brass);}
 
-  .empty-state{
-    padding:44px 20px;
-    text-align:center;
-    color:var(--ink-faint);
-    font-size:13.5px;
-  }
+.kpi-num{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:clamp(22px,3vw,30px);font-weight:600;
+  letter-spacing:-.02em;
+  transition:color var(--transition);
+}
+.kpi-label{
+  font-size:11px;color:var(--ink-soft);margin-top:5px;
+  text-transform:uppercase;letter-spacing:.06em;line-height:1.4;
+}
+.kpi-card.total .kpi-num{color:var(--ink);}
+.kpi-card.exact .kpi-num{color:var(--emerald);}
+.kpi-card.partial .kpi-num{color:var(--amber);}
+.kpi-card.ledger-only .kpi-num{color:var(--sapphire);}
+.kpi-card.bank-only .kpi-num{color:var(--violet);}
+.kpi-card.rate .kpi-num{color:var(--brass);}
 
-  .subsection{ margin-top:18px; }
-  .toggle-link{
-    background:none; border:none; cursor:pointer;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px; color:var(--brass);
-    padding:0; text-decoration:underline;
-    text-underline-offset:3px;
-  }
+/* ═══════════════════════════════════════════════════
+   RESULTS
+═══════════════════════════════════════════════════ */
+.results-toolbar{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;
+}
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:280px;}
+.search-wrap svg{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  pointer-events:none;color:var(--ink-faint);
+}
+.search-input{padding-left:34px!important;}
 
-  .export-bar{
-    margin-left:68px;
-    display:flex;
-    gap:12px;
-    margin-top:24px;
-    flex-wrap:wrap;
-  }
+.chip{
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.03em;
+  padding:8px 14px;border-radius:100px;
+  border:1px solid var(--paper-line);background:#fff;cursor:pointer;
+  color:var(--ink-soft);white-space:nowrap;
+  transition:all var(--transition);
+}
+.chip:hover{border-color:var(--ink-soft);color:var(--ink);}
+.chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.chip.exact.active{background:var(--emerald);border-color:var(--emerald);}
+.chip.partial.active{background:var(--amber);border-color:var(--amber);}
+.chip.ledger-only.active{background:var(--sapphire);border-color:var(--sapphire);}
+.chip.bank-only.active{background:var(--violet);border-color:var(--violet);}
 
-  footer.foot{
-    margin-left:68px;
-    margin-top:56px;
-    padding-top:20px;
-    border-top:1px dashed var(--paper-line);
-    color:var(--ink-faint);
-    font-size:12px;
-    line-height:1.6;
-    max-width:600px;
-  }
+.table-card{overflow:hidden;}
+.table-scroll{max-height:480px;overflow:auto;overscroll-behavior:contain;}
+.table-scroll::-webkit-scrollbar{width:6px;height:6px;}
+.table-scroll::-webkit-scrollbar-track{background:transparent;}
+.table-scroll::-webkit-scrollbar-thumb{background:var(--paper-line);border-radius:3px;}
+.table-scroll::-webkit-scrollbar-thumb:hover{background:var(--ink-faint);}
 
-  .step-disabled{ opacity:0.45; pointer-events:none; filter:saturate(0.4); }
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  position:sticky;top:0;
+  background:#FBFAF6;
+  text-align:left;padding:12px 14px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);
+  border-bottom:1px solid var(--paper-line);white-space:nowrap;
+  user-select:none;
+}
+thead th:first-child{border-radius:var(--radius) 0 0 0;}
+tbody td{
+  padding:11px 14px;border-bottom:1px solid #F2EFE6;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;
+  color:var(--ink);white-space:nowrap;
+  transition:background var(--transition);
+}
+tbody tr{transition:background var(--transition);}
+tbody tr:hover td{background:#FBFAF4;}
+tbody tr:last-child td{border-bottom:none;}
+.cell-mismatch{color:var(--garnet)!important;font-weight:500;}
+.cell-na{color:var(--ink-faint)!important;font-style:italic;}
 
-  .file-count-badge{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    color:var(--ink-faint);
-    margin-left:6px;
-  }
+/* STAMPS */
+.stamp{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:9px;
+  font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 9px;border-radius:5px;
+  border:1.5px solid currentColor;
+}
+.stamp.exact{color:var(--emerald);background:var(--emerald-soft);}
+.stamp.partial{color:var(--amber);background:var(--amber-soft);}
+.stamp.ledger-only{color:var(--sapphire);background:var(--sapphire-soft);}
+.stamp.bank-only{color:var(--violet);background:var(--violet-soft);}
+
+.empty-state{
+  padding:56px 20px;text-align:center;
+  color:var(--ink-faint);font-size:13.5px;
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+.empty-state svg{opacity:.3;}
+
+/* ═══════════════════════════════════════════════════
+   SECTION REVEAL ANIMATION
+═══════════════════════════════════════════════════ */
+.reveal{
+  animation:section-reveal .45s cubic-bezier(0.4,0,0.2,1) both;
+}
+@keyframes section-reveal{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORT BAR
+═══════════════════════════════════════════════════ */
+.export-bar{
+  display:flex;gap:12px;margin-top:22px;flex-wrap:wrap;align-items:center;
+}
+.export-label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--ink-faint);letter-spacing:.06em;text-transform:uppercase;
+  margin-right:4px;
+}
+
+/* ═══════════════════════════════════════════════════
+   STEP DISABLED
+═══════════════════════════════════════════════════ */
+.step-disabled{
+  opacity:.42;pointer-events:none;
+  filter:saturate(.3) brightness(1.05);
+  transition:opacity var(--transition),filter var(--transition);
+}
+
+/* ═══════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════ */
+footer.foot{
+  margin-left:var(--margin-left);
+  margin-top:60px;
+  padding-top:22px;
+  border-top:1px dashed var(--paper-line);
+  color:var(--ink-faint);font-size:12px;line-height:1.7;
+  max-width:560px;
+}
+
+/* ═══════════════════════════════════════════════════
+   MOBILE OVERRIDES
+═══════════════════════════════════════════════════ */
+@media(max-width:640px){
+  :root{--margin-left:18px;}
+  header.top{padding:36px 0 26px var(--margin-left);}
+  h1.title{font-size:30px;}
+  section,header.top,.instructions,.run-bar,.export-bar,footer.foot{margin-left:var(--margin-left);}
+  .run-bar{flex-direction:column;align-items:flex-start;}
+  .btn{width:100%;justify-content:center;}
+  .export-bar{flex-direction:column;}
+  .export-bar .btn{width:auto;}
+}
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+#toast{
+  position:fixed;bottom:28px;right:28px;z-index:10000;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;
+  padding:13px 20px;border-radius:10px;
+  background:var(--ink);color:#fff;
+  box-shadow:var(--shadow-lg);
+  opacity:0;transform:translateY(10px);
+  transition:opacity .3s ease,transform .3s ease;
+  pointer-events:none;max-width:320px;line-height:1.5;
+}
+#toast.show{opacity:1;transform:translateY(0);}
+
+/* ═══════════════════════════════════════════════════
+   PROGRESS BAR (top)
+═══════════════════════════════════════════════════ */
+#top-progress{
+  position:fixed;top:0;left:0;height:3px;width:0%;
+  background:linear-gradient(90deg,var(--emerald),var(--brass));
+  z-index:10001;
+  transition:width .4s ease,opacity .3s ease;
+}
+
+/* ═══════════════════════════════════════════════════
+   COLUMN SOURCE LEGEND
+═══════════════════════════════════════════════════ */
+.col-ledger{border-bottom:2px solid rgba(31,111,92,0.35);}
+.col-bank{border-bottom:2px solid rgba(91,63,168,0.35);}
+.legend-strip{
+  display:flex;gap:18px;flex-wrap:wrap;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--ink-soft);margin-bottom:10px;
+  padding:8px 14px;
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.6);
+  border:1px dashed var(--paper-line);
+  width:fit-content;
+}
+.legend-item{display:flex;align-items:center;gap:6px;}
+.legend-dot{width:10px;height:3px;border-radius:2px;}
+.legend-dot.l{background:var(--emerald);opacity:.7;}
+.legend-dot.b{background:var(--violet);opacity:.7;}
 </style>
 </head>
 <body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="loader-ring"></div>
+  <div class="loader-text" id="loader-msg">Processing…</div>
+</div>
+
+<!-- Top progress bar -->
+<div id="top-progress"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
 
 <div class="rule-margin"></div>
 
 <div class="wrap">
 
+  <!-- ═══ HEADER ═══ -->
   <header class="top">
     <span class="eyebrow">Client-Side Application · No Server · No Data Transmission</span>
     <h1 class="title">ReconPro Lite</h1>
-    <p class="subtitle">A secure, browser-based reconciliation utility for comparing a company ledger against a bank or GST statement. All processing is performed locally within this session.</p>
+    <p class="subtitle">A secure, browser-based reconciliation utility. Compares your company ledger against a bank or GST statement — both sides are fully analysed, including bank-only entries.</p>
     <div class="privacy-strip">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      All data remains on your device. Files are processed in local memory and discarded upon closing this tab.
+      All data stays on your device — zero uploads, zero storage.
     </div>
   </header>
 
-  <!-- INSTRUCTIONS -->
+  <!-- ═══ INSTRUCTIONS ═══ -->
   <div class="instructions">
-    <div class="card instructions-card">
-      <div class="instructions-head">Before You Begin</div>
+    <div class="instructions-card">
+      <div class="instructions-head">How It Works</div>
       <ul class="instructions-list">
-        <li><span class="num">1</span><span>Upload two Excel files: the <strong>Company Ledger</strong> and the <strong>GST / Bank Statement</strong>.</span></li>
-        <li><span class="num">2</span><span>Ensure the first row of each Excel file contains the correct column headers.</span></li>
-        <li><span class="num">3</span><span>After both files are uploaded, map the corresponding columns carefully.</span></li>
-        <li><span class="num">4</span><span>Click <strong>Run Reconciliation</strong> to generate the results.</span></li>
-        <li class="tip"><span class="num">&#128161;</span><span>Selecting more matching fields improves reconciliation accuracy.</span></li>
+        <li><span class="num">1</span><span>Upload your <strong>Company Ledger</strong> (File A) and <strong>Bank / GST Statement</strong> (File B) — both must be <code>.xlsx</code> or <code>.xls</code>.</span></li>
+        <li><span class="num">2</span><span>Each file's first row must contain column headers. The tool auto-suggests column matches.</span></li>
+        <li><span class="num">3</span><span>Map the corresponding columns across both files. Add more pairs for higher accuracy.</span></li>
+        <li><span class="num">4</span><span>Click <strong>Run Reconciliation</strong>. Results will classify every row from <em>both</em> files.</span></li>
+        <li class="tip"><span class="num">💡</span><span><strong>New:</strong> Bank-only entries (present in File B but absent in File A) are now shown as first-class results — not buried in a secondary table.</span></li>
       </ul>
     </div>
   </div>
 
-  <!-- STEP 1: UPLOAD -->
-  <section id="step-upload">
+  <!-- ═══ STEP 1: UPLOAD ═══ -->
+  <section id="step-upload" style="animation:fade-up .5s .2s ease both;">
     <div class="sec-head">
       <span class="sec-label">Step 1</span>
       <h2 class="sec-title">Upload Source Files</h2>
     </div>
     <div class="upload-grid">
-      <div class="dropzone card" id="dz-company" tabindex="0" role="button" aria-label="Upload company ledger file">
-        <span class="dz-label">File A</span>
+
+      <!-- File A -->
+      <div class="dropzone" id="dz-company" tabindex="0" role="button" aria-label="Upload company ledger">
+        <div class="dz-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brass)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <span class="dz-label">File A — Ledger</span>
         <div class="dz-title">Company Ledger</div>
-        <div class="dz-hint">Accepted formats: .xlsx, .xls — drag and drop or click to browse</div>
-        <div class="dz-file"><span>&#10003;</span><span id="dz-company-name"></span></div>
+        <div class="dz-hint">Drag &amp; drop or click to browse<br>.xlsx / .xls accepted</div>
+        <div class="dz-file">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="dz-company-name"></span>
+        </div>
+        <div class="dz-progress" id="prog-company"></div>
         <input type="file" id="file-company" accept=".xlsx,.xls" />
       </div>
-      <div class="dropzone card" id="dz-bank" tabindex="0" role="button" aria-label="Upload bank or GST statement file">
-        <span class="dz-label">File B</span>
+
+      <!-- File B -->
+      <div class="dropzone" id="dz-bank" tabindex="0" role="button" aria-label="Upload bank or GST statement">
+        <div class="dz-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brass)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+          </svg>
+        </div>
+        <span class="dz-label">File B — Statement</span>
         <div class="dz-title">Bank Statement / GST Report</div>
-        <div class="dz-hint">Accepted formats: .xlsx, .xls — drag and drop or click to browse</div>
-        <div class="dz-file"><span>&#10003;</span><span id="dz-bank-name"></span></div>
+        <div class="dz-hint">Drag &amp; drop or click to browse<br>.xlsx / .xls accepted</div>
+        <div class="dz-file">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="dz-bank-name"></span>
+        </div>
+        <div class="dz-progress" id="prog-bank"></div>
         <input type="file" id="file-bank" accept=".xlsx,.xls" />
       </div>
+
     </div>
   </section>
 
-  <!-- STEP 2: MAPPING -->
-  <section id="step-mapping" class="step-disabled">
+  <!-- ═══ STEP 2: MAPPING ═══ -->
+  <section id="step-mapping" class="step-disabled" style="animation:fade-up .5s .3s ease both;">
     <div class="sec-head">
       <span class="sec-label">Step 2</span>
       <h2 class="sec-title">Configure Column Mapping</h2>
     </div>
     <div class="mapping-card card">
-      <div id="map-rows"></div>
+      <div id="map-rows" class="map-rows-wrap"></div>
       <div class="map-actions">
-        <button class="add-map-btn" id="add-map-row" type="button">+ Add Column Pair</button>
+        <button class="add-map-btn" id="add-map-row" type="button">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Column Pair
+        </button>
         <label class="tolerance-field">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Amount Tolerance ±
-          <input type="number" id="tolerance" value="0.01" step="0.01" min="0" />
+          <input type="number" id="tolerance" value="0.01" step="0.01" min="0" style="width:80px;" />
         </label>
       </div>
     </div>
   </section>
 
-  <!-- RUN -->
-  <div class="run-bar">
-    <button class="btn btn-primary step-disabled" id="run-btn" type="button">Run Reconciliation</button>
+  <!-- ═══ RUN ═══ -->
+  <div class="run-bar" style="animation:fade-up .5s .4s ease both;">
+    <button class="btn btn-primary step-disabled" id="run-btn" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Run Reconciliation
+    </button>
     <span class="run-note" id="run-note">Upload both files and configure at least one column pair to proceed</span>
   </div>
 
-  <!-- KPI -->
+  <!-- ═══ KPI ═══ -->
   <section id="step-kpi" style="display:none;">
     <div class="sec-head">
       <span class="sec-label">Summary</span>
       <h2 class="sec-title">Reconciliation Summary</h2>
     </div>
     <div class="kpi-grid">
-      <div class="card kpi-card total"><div class="kpi-num" id="kpi-total">0</div><div class="kpi-label">Total Records</div></div>
-      <div class="card kpi-card exact"><div class="kpi-num" id="kpi-exact">0</div><div class="kpi-label">Exact Matches</div></div>
-      <div class="card kpi-card partial"><div class="kpi-num" id="kpi-partial">0</div><div class="kpi-label">Partial Matches</div></div>
-      <div class="card kpi-card unmatched"><div class="kpi-num" id="kpi-unmatched">0</div><div class="kpi-label">Unmatched Records</div></div>
-      <div class="card kpi-card rate"><div class="kpi-num" id="kpi-rate">0%</div><div class="kpi-label">Match Rate</div></div>
+      <div class="card kpi-card total"  style="--delay:0s"><div class="kpi-num" id="kpi-total">0</div><div class="kpi-label">Total Records</div></div>
+      <div class="card kpi-card exact"  style="--delay:.05s"><div class="kpi-num" id="kpi-exact">0</div><div class="kpi-label">Exact Matches</div></div>
+      <div class="card kpi-card partial" style="--delay:.1s"><div class="kpi-num" id="kpi-partial">0</div><div class="kpi-label">Partial Matches</div></div>
+      <div class="card kpi-card ledger-only" style="--delay:.15s"><div class="kpi-num" id="kpi-ledger-only">0</div><div class="kpi-label">Ledger Only</div></div>
+      <div class="card kpi-card bank-only" style="--delay:.2s"><div class="kpi-num" id="kpi-bank-only">0</div><div class="kpi-label">Bank Only</div></div>
+      <div class="card kpi-card rate" style="--delay:.25s"><div class="kpi-num" id="kpi-rate">0%</div><div class="kpi-label">Match Rate</div></div>
     </div>
   </section>
 
-  <!-- RESULTS TABLE -->
+  <!-- ═══ RESULTS ═══ -->
   <section id="step-results" style="display:none;">
-    <div class="results-toolbar">
-      <input type="text" class="search-input" id="search-box" placeholder="Search records…" />
-      <button class="chip active" data-filter="all">All Records</button>
-      <button class="chip" data-filter="exact">Exact</button>
-      <button class="chip" data-filter="partial">Partial</button>
-      <button class="chip" data-filter="unmatched">Unmatched</button>
+    <div class="sec-head">
+      <span class="sec-label">Results</span>
+      <h2 class="sec-title">All Records — Both Sides</h2>
     </div>
+
+    <div class="results-toolbar">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="search-input" id="search-box" placeholder="Search all records…" />
+      </div>
+      <button class="chip active" data-filter="all">All</button>
+      <button class="chip exact" data-filter="exact">Exact</button>
+      <button class="chip partial" data-filter="partial">Partial</button>
+      <button class="chip ledger-only" data-filter="ledger-only">Ledger Only</button>
+      <button class="chip bank-only" data-filter="bank-only">Bank Only</button>
+    </div>
+
+    <div class="legend-strip">
+      <div class="legend-item"><div class="legend-dot l"></div><span>Ledger columns</span></div>
+      <div class="legend-item"><div class="legend-dot b"></div><span>Bank/GST columns</span></div>
+    </div>
+
     <div class="card table-card">
       <div class="table-scroll">
         <table>
@@ -592,442 +807,672 @@
       </div>
     </div>
 
-    <div class="subsection" id="bank-leftover-wrap" style="display:none;">
-      <button class="toggle-link" id="toggle-bank-leftover">View Bank/GST Records Without a Ledger Match ↓</button>
-      <div class="card table-card" id="bank-leftover-card" style="display:none; margin-top:10px;">
-        <div class="table-scroll">
-          <table><thead><tr id="bank-leftover-head"></tr></thead><tbody id="bank-leftover-body"></tbody></table>
-        </div>
-      </div>
-    </div>
-
     <div class="export-bar">
-      <button class="btn btn-primary" id="export-excel">Export to Excel</button>
-      <button class="btn btn-secondary" id="export-pdf">Export PDF Report</button>
+      <span class="export-label">Export</span>
+      <button class="btn btn-primary" id="export-excel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export to Excel
+      </button>
+      <button class="btn btn-secondary" id="export-pdf">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Export PDF Report
+      </button>
+      <button class="btn-ghost" id="reset-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.57"/></svg>
+        Start Over
+      </button>
     </div>
   </section>
 
   <footer class="foot">
-    ReconPro Lite retains no data. This application uses no local storage, cookies, or database, and initiates no network requests beyond the initial page load. All uploaded records are cleared from memory upon closing this tab.
+    ReconPro Lite retains no data. No cookies, no local storage, no network requests beyond initial page load.
+    All uploaded records are discarded from memory when this tab is closed.
   </footer>
 
-</div>
+</div><!-- /wrap -->
 
 <script>
 (function(){
-  "use strict";
+"use strict";
 
-  const state = {
-    companyRows: [], companyHeaders: [],
-    bankRows: [], bankHeaders: [],
-    mappings: [],
-    results: [],
-    bankLeftover: [],
-    activeFilter: 'all'
-  };
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+const state = {
+  companyRows:[], companyHeaders:[],
+  bankRows:[], bankHeaders:[],
+  mappings:[],
+  results:[],   // unified: includes matched, ledger-only, and bank-only rows
+  activeFilter:'all'
+};
 
-  // ---------- FILE LOADING ----------
-  function setupDropzone(zoneId, inputId, nameId, onLoaded){
-    const zone = document.getElementById(zoneId);
-    const input = document.getElementById(inputId);
-    zone.addEventListener('click', () => input.click());
-    zone.addEventListener('keydown', e => { if(e.key==='Enter' || e.key===' ') { e.preventDefault(); input.click(); } });
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
-    zone.addEventListener('drop', e => {
-      e.preventDefault(); zone.classList.remove('drag');
-      if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-    });
-    input.addEventListener('change', e => { if(e.target.files.length) handleFile(e.target.files[0]); });
+/* ═══════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════ */
+function esc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmt(v){
+  if(v==null||v===undefined) return '';
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  return String(v);
+}
+function normalizeVal(v){
+  if(v==null||v===undefined) return '';
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  return String(v).trim().toLowerCase().replace(/\s+/g,' ');
+}
+function isNum(v){
+  if(v==null||v==='') return false;
+  return !isNaN(parseFloat(String(v).replace(/[,₹$€£]/g,'')))&&
+          isFinite(String(v).replace(/[,₹$€£]/g,''));
+}
+function toNum(v){ return parseFloat(String(v).replace(/[,₹$€£]/g,'')); }
+function fieldsMatch(a,b,tol){
+  if(isNum(a)&&isNum(b)) return Math.abs(toNum(a)-toNum(b))<=tol;
+  return normalizeVal(a)===normalizeVal(b);
+}
 
-    function handleFile(file){
-      const reader = new FileReader();
-      reader.onload = function(evt){
-        try{
-          const data = new Uint8Array(evt.target.result);
-          const wb = XLSX.read(data, {type:'array', cellDates:true});
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet, {defval:"", raw:false});
-          if(!rows.length){ alert('The selected file contains no data rows on its first worksheet.'); return; }
-          const headers = Object.keys(rows[0]);
-          zone.classList.add('loaded');
-          document.getElementById(nameId).textContent = file.name + ' · ' + rows.length + ' rows';
-          onLoaded(rows, headers);
-        }catch(err){
-          alert('The file could not be read. Please confirm it is a valid .xlsx or .xls export.\n\n' + err.message);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-  }
+/* LOADING */
+function showLoader(msg){
+  document.getElementById('loader-msg').textContent = msg||'Processing…';
+  document.getElementById('loading-overlay').classList.add('visible');
+}
+function hideLoader(){
+  document.getElementById('loading-overlay').classList.remove('visible');
+}
 
-  setupDropzone('dz-company','file-company','dz-company-name', (rows, headers) => {
-    state.companyRows = rows; state.companyHeaders = headers;
-    afterFileLoad();
+/* TOP PROGRESS */
+function setProgress(pct){
+  const bar = document.getElementById('top-progress');
+  bar.style.width = pct+'%';
+  if(pct>=100){ setTimeout(()=>{ bar.style.opacity='0'; setTimeout(()=>{bar.style.width='0%';bar.style.opacity='1';},400); },500); }
+}
+
+/* TOAST */
+let toastTimer;
+function toast(msg,dur=3200){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'),dur);
+}
+
+/* ANIMATED COUNTER */
+function animateCount(el, target, isPercent){
+  const start = 0, dur = 600, step = 16;
+  let cur = start;
+  const inc = target/(dur/step);
+  const interval = setInterval(()=>{
+    cur = Math.min(cur+inc, target);
+    el.textContent = Math.round(cur) + (isPercent?'%':'');
+    if(cur>=target) clearInterval(interval);
+  },step);
+}
+
+/* ═══════════════════════════════════════════════════
+   FILE LOADING
+═══════════════════════════════════════════════════ */
+function setupDropzone(zoneId, inputId, nameId, progId, onLoaded){
+  const zone  = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const prog  = document.getElementById(progId);
+
+  zone.addEventListener('click', ()=>input.click());
+  zone.addEventListener('keydown', e=>{
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); input.click(); }
   });
-  setupDropzone('dz-bank','file-bank','dz-bank-name', (rows, headers) => {
-    state.bankRows = rows; state.bankHeaders = headers;
-    afterFileLoad();
+  zone.addEventListener('dragover',  e=>{ e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+  zone.addEventListener('drop', e=>{
+    e.preventDefault(); zone.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
   });
+  input.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
 
-  function afterFileLoad(){
-    if(state.companyHeaders.length && state.bankHeaders.length){
-      document.getElementById('step-mapping').classList.remove('step-disabled');
-      if(state.mappings.length === 0){
-        addMapRow();
-        autoSuggestMappings();
-      }
-      refreshMapSelects();
-      updateRunButton();
-    }
-  }
-
-  // ---------- COLUMN MAPPING ----------
-  function addMapRow(companyVal, bankVal){
-    const id = 'm' + Math.random().toString(36).slice(2,9);
-    state.mappings.push({id, company: companyVal || '', bank: bankVal || ''});
-    renderMapRows();
-  }
-
-  function renderMapRows(){
-    const wrap = document.getElementById('map-rows');
-    wrap.innerHTML = '';
-    state.mappings.forEach(m => {
-      const row = document.createElement('div');
-      row.className = 'map-row';
-      row.innerHTML = `
-        <select data-id="${m.id}" data-side="company">${optionsHtml(state.companyHeaders, m.company)}</select>
-        <div class="map-arrow">&#8596;</div>
-        <select data-id="${m.id}" data-side="bank">${optionsHtml(state.bankHeaders, m.bank)}</select>
-        <button class="map-remove" data-remove="${m.id}" type="button" aria-label="Remove mapping">&times;</button>
-      `;
-      wrap.appendChild(row);
-    });
-    wrap.querySelectorAll('select').forEach(sel => {
-      sel.addEventListener('change', e => {
-        const m = state.mappings.find(x => x.id === e.target.dataset.id);
-        if(m) m[e.target.dataset.side] = e.target.value;
-        updateRunButton();
-      });
-    });
-    wrap.querySelectorAll('[data-remove]').forEach(btn => {
-      btn.addEventListener('click', e => {
-        state.mappings = state.mappings.filter(x => x.id !== e.target.dataset.remove);
-        renderMapRows();
-        updateRunButton();
-      });
-    });
-    updateRunButton();
-  }
-
-  function optionsHtml(headers, selected){
-    let html = '<option value="">Select column…</option>';
-    headers.forEach(h => {
-      html += `<option value="${escapeHtml(h)}" ${h===selected?'selected':''}>${escapeHtml(h)}</option>`;
-    });
-    return html;
-  }
-
-  function refreshMapSelects(){ renderMapRows(); }
-
-  function autoSuggestMappings(){
-    // best-effort auto match by normalized header name similarity
-    const used = new Set();
-    const first = state.mappings[0];
-    let firstSet = false;
-    state.companyHeaders.forEach(ch => {
-      const norm = normalizeHeader(ch);
-      let best = null, bestScore = 0;
-      state.bankHeaders.forEach(bh => {
-        if(used.has(bh)) return;
-        const s = headerSimilarity(norm, normalizeHeader(bh));
-        if(s > bestScore){ bestScore = s; best = bh; }
-      });
-      if(best && bestScore >= 0.5){
-        used.add(best);
-        if(!firstSet){ first.company = ch; first.bank = best; firstSet = true; }
-        else addMapRow(ch, best);
-      }
-    });
-    if(!firstSet && state.companyHeaders.length && state.bankHeaders.length){
-      first.company = state.companyHeaders[0];
-      first.bank = state.bankHeaders[0];
-    }
-  }
-
-  function normalizeHeader(h){
-    return String(h).toLowerCase().replace(/[^a-z0-9]/g,'');
-  }
-  function headerSimilarity(a,b){
-    if(a===b) return 1;
-    if(a.includes(b) || b.includes(a)) return 0.75;
-    // token overlap fallback
-    return 0;
-  }
-
-  document.getElementById('add-map-row').addEventListener('click', () => addMapRow());
-
-  // ---------- RUN BUTTON STATE ----------
-  function updateRunButton(){
-    const validMappings = state.mappings.filter(m => m.company && m.bank);
-    const ready = state.companyRows.length && state.bankRows.length && validMappings.length > 0;
-    const btn = document.getElementById('run-btn');
-    const note = document.getElementById('run-note');
-    if(ready){
-      btn.classList.remove('step-disabled');
-      btn.disabled = false;
-      note.textContent = validMappings.length + ' column pair(s) configured · ' + state.companyRows.length + ' ledger record(s) vs ' + state.bankRows.length + ' statement record(s)';
-    } else {
-      btn.classList.add('step-disabled');
-      btn.disabled = true;
-      note.textContent = 'Upload both files and configure at least one column pair to proceed';
-    }
-  }
-
-  // ---------- RECONCILIATION ENGINE ----------
-  function normalizeValue(v){
-    if(v === null || v === undefined) return '';
-    if(v instanceof Date) return v.toISOString().slice(0,10);
-    return String(v).trim().toLowerCase().replace(/\s+/g,' ');
-  }
-  function isNumeric(v){
-    if(v === null || v === undefined || v === '') return false;
-    return !isNaN(parseFloat(String(v).replace(/[,₹$]/g,''))) && isFinite(String(v).replace(/[,₹$]/g,''));
-  }
-  function toNumber(v){
-    return parseFloat(String(v).replace(/[,₹$]/g,''));
-  }
-
-  function fieldsMatch(a, b, tolerance){
-    if(isNumeric(a) && isNumeric(b)){
-      return Math.abs(toNumber(a) - toNumber(b)) <= tolerance;
-    }
-    return normalizeValue(a) === normalizeValue(b);
-  }
-
-  document.getElementById('run-btn').addEventListener('click', runReconciliation);
-
-  function runReconciliation(){
-    const validMappings = state.mappings.filter(m => m.company && m.bank);
-    const tolerance = parseFloat(document.getElementById('tolerance').value) || 0;
-
-    const pairs = [];
-    state.companyRows.forEach((crow, ci) => {
-      state.bankRows.forEach((brow, bi) => {
-        let matchedFields = 0;
-        validMappings.forEach(m => {
-          if(fieldsMatch(crow[m.company], brow[m.bank], tolerance)) matchedFields++;
-        });
-        const score = validMappings.length ? matchedFields / validMappings.length : 0;
-        if(score > 0) pairs.push({ci, bi, score, matchedFields});
-      });
-    });
-    pairs.sort((a,b) => b.score - a.score || b.matchedFields - a.matchedFields);
-
-    const companyAssigned = new Array(state.companyRows.length).fill(null);
-    const bankUsed = new Array(state.bankRows.length).fill(false);
-
-    pairs.forEach(p => {
-      if(companyAssigned[p.ci] === null && !bankUsed[p.bi]){
-        companyAssigned[p.ci] = p;
-        bankUsed[p.bi] = true;
-      }
-    });
-
-    const results = state.companyRows.map((crow, ci) => {
-      const assign = companyAssigned[ci];
-      const scorePct = assign ? Math.round(assign.score * 100) : 0;
-      let status = 'unmatched';
-      if(assign && scorePct === 100) status = 'exact';
-      else if(assign && scorePct > 0) status = 'partial';
-      return {
-        company: crow,
-        bank: assign ? state.bankRows[assign.bi] : null,
-        score: scorePct,
-        status
-      };
-    });
-
-    const bankLeftover = state.bankRows.filter((row, bi) => !bankUsed[bi]);
-
-    state.results = results;
-    state.bankLeftover = bankLeftover;
-
-    renderKPIs();
-    renderResultsTable();
-    renderBankLeftover();
-
-    document.getElementById('step-kpi').style.display = '';
-    document.getElementById('step-results').style.display = '';
-    document.getElementById('step-kpi').scrollIntoView({behavior:'smooth', block:'start'});
-  }
-
-  // ---------- RENDER KPI ----------
-  function renderKPIs(){
-    const total = state.results.length;
-    const exact = state.results.filter(r => r.status==='exact').length;
-    const partial = state.results.filter(r => r.status==='partial').length;
-    const unmatched = state.results.filter(r => r.status==='unmatched').length;
-    const rate = total ? Math.round(((exact+partial)/total)*100) : 0;
-    document.getElementById('kpi-total').textContent = total;
-    document.getElementById('kpi-exact').textContent = exact;
-    document.getElementById('kpi-partial').textContent = partial;
-    document.getElementById('kpi-unmatched').textContent = unmatched;
-    document.getElementById('kpi-rate').textContent = rate + '%';
-  }
-
-  // ---------- RENDER RESULTS TABLE ----------
-  function renderResultsTable(){
-    const validMappings = state.mappings.filter(m => m.company && m.bank);
-    const head = document.getElementById('results-head');
-    head.innerHTML = '<th>Status</th><th>Score</th>' +
-      validMappings.map(m => `<th>${escapeHtml(m.company)}</th>`).join('') +
-      validMappings.map(m => `<th>${escapeHtml(m.bank)} (bank)</th>`).join('');
-
-    renderResultsBody();
-  }
-
-  function matchesFilter(r){
-    if(state.activeFilter === 'all') return true;
-    return r.status === state.activeFilter;
-  }
-  function matchesSearch(r, term){
-    if(!term) return true;
-    const hay = JSON.stringify(r.company) + JSON.stringify(r.bank||{});
-    return hay.toLowerCase().includes(term);
-  }
-
-  function renderResultsBody(){
-    const validMappings = state.mappings.filter(m => m.company && m.bank);
-    const body = document.getElementById('results-body');
-    const term = document.getElementById('search-box').value.trim().toLowerCase();
-    const rows = state.results.filter(r => matchesFilter(r) && matchesSearch(r, term));
-
-    if(!rows.length){
-      body.innerHTML = `<tr><td colspan="${2+validMappings.length*2}"><div class="empty-state">No records match this filter.</div></td></tr>`;
+  function handleFile(file){
+    if(!file.name.match(/\.(xlsx|xls)$/i)){
+      toast('⚠ Only .xlsx and .xls files are supported.');
       return;
     }
-
-    body.innerHTML = rows.map(r => {
-      const statusHtml = `<span class="stamp ${r.status}">${r.status}</span>`;
-      const scoreHtml = r.score + '%';
-      const companyCells = validMappings.map(m => `<td>${escapeHtml(fmt(r.company[m.company]))}</td>`).join('');
-      const bankCells = validMappings.map(m => {
-        const bv = r.bank ? r.bank[m.bank] : '';
-        const cv = r.company[m.company];
-        const mismatch = r.bank && !fieldsMatch(cv, bv, parseFloat(document.getElementById('tolerance').value)||0);
-        return `<td class="${mismatch?'cell-mismatch':''}">${r.bank ? escapeHtml(fmt(bv)) : '—'}</td>`;
-      }).join('');
-      return `<tr><td>${statusHtml}</td><td>${scoreHtml}</td>${companyCells}${bankCells}</tr>`;
-    }).join('');
+    prog.style.width='15%';
+    const reader = new FileReader();
+    reader.onprogress = e=>{
+      if(e.lengthComputable) prog.style.width=(15+((e.loaded/e.total)*65))+'%';
+    };
+    reader.onload = function(evt){
+      prog.style.width='90%';
+      try{
+        const data = new Uint8Array(evt.target.result);
+        const wb   = XLSX.read(data,{type:'array',cellDates:true});
+        const sheet= wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
+        if(!rows.length){
+          toast('⚠ No data rows found in the first worksheet.');
+          prog.style.width='0%';
+          return;
+        }
+        const headers = Object.keys(rows[0]);
+        zone.classList.add('loaded');
+        document.getElementById(nameId).textContent = file.name + ' · ' + rows.length.toLocaleString() + ' rows';
+        prog.style.width='100%';
+        setTimeout(()=>prog.style.width='0%',800);
+        onLoaded(rows, headers);
+        toast('✓ ' + file.name + ' loaded — ' + rows.length.toLocaleString() + ' rows');
+      } catch(err){
+        toast('✗ Could not read file. Confirm it is a valid Excel export.');
+        prog.style.width='0%';
+      }
+    };
+    reader.readAsArrayBuffer(file);
   }
+}
 
-  function fmt(v){
-    if(v === null || v === undefined) return '';
-    if(v instanceof Date) return v.toISOString().slice(0,10);
-    return String(v);
-  }
+setupDropzone('dz-company','file-company','dz-company-name','prog-company',(rows,headers)=>{
+  state.companyRows=rows; state.companyHeaders=headers;
+  afterFileLoad();
+});
+setupDropzone('dz-bank','file-bank','dz-bank-name','prog-bank',(rows,headers)=>{
+  state.bankRows=rows; state.bankHeaders=headers;
+  afterFileLoad();
+});
 
-  document.getElementById('search-box').addEventListener('input', renderResultsBody);
-  document.querySelectorAll('.chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      state.activeFilter = chip.dataset.filter;
-      renderResultsBody();
-    });
-  });
-
-  // ---------- BANK LEFTOVER ----------
-  function renderBankLeftover(){
-    const wrap = document.getElementById('bank-leftover-wrap');
-    const head = document.getElementById('bank-leftover-head');
-    const body = document.getElementById('bank-leftover-body');
-    if(!state.bankLeftover.length){ wrap.style.display='none'; return; }
-    wrap.style.display='';
-    document.getElementById('toggle-bank-leftover').textContent =
-      `View Bank/GST Records Without a Ledger Match (${state.bankLeftover.length}) ↓`;
-    head.innerHTML = state.bankHeaders.map(h => `<th>${escapeHtml(h)}</th>`).join('');
-    body.innerHTML = state.bankLeftover.map(row =>
-      '<tr>' + state.bankHeaders.map(h => `<td>${escapeHtml(fmt(row[h]))}</td>`).join('') + '</tr>'
-    ).join('');
-  }
-  document.getElementById('toggle-bank-leftover').addEventListener('click', () => {
-    const card = document.getElementById('bank-leftover-card');
-    const btn = document.getElementById('toggle-bank-leftover');
-    const showing = card.style.display !== 'none';
-    card.style.display = showing ? 'none' : '';
-    btn.textContent = btn.textContent.replace(showing ? '↑' : '↓', showing ? '↓' : '↑');
-  });
-
-  // ---------- EXPORT EXCEL ----------
-  document.getElementById('export-excel').addEventListener('click', () => {
-    const validMappings = state.mappings.filter(m => m.company && m.bank);
-    const exportRows = state.results.map(r => {
-      const row = {};
-      state.companyHeaders.forEach(h => row['Ledger: ' + h] = fmt(r.company[h]));
-      if(r.bank){ state.bankHeaders.forEach(h => row['Bank: ' + h] = fmt(r.bank[h])); }
-      row['Match Status'] = r.status;
-      row['Match Score'] = r.score + '%';
-      return row;
-    });
-    const wb = XLSX.utils.book_new();
-    const ws1 = XLSX.utils.json_to_sheet(exportRows);
-    XLSX.utils.book_append_sheet(wb, ws1, 'Reconciliation');
-
-    if(state.bankLeftover.length){
-      const ws2 = XLSX.utils.json_to_sheet(state.bankLeftover);
-      XLSX.utils.book_append_sheet(wb, ws2, 'Unmatched Bank Records');
+function afterFileLoad(){
+  if(state.companyHeaders.length && state.bankHeaders.length){
+    document.getElementById('step-mapping').classList.remove('step-disabled');
+    if(state.mappings.length===0){
+      addMapRow(); // placeholder row
+      autoSuggestMappings();
     }
-    const summaryRows = [
-      {Metric:'Total Ledger Records', Value: state.results.length},
-      {Metric:'Exact Matches', Value: state.results.filter(r=>r.status==='exact').length},
-      {Metric:'Partial Matches', Value: state.results.filter(r=>r.status==='partial').length},
-      {Metric:'Unmatched', Value: state.results.filter(r=>r.status==='unmatched').length},
-      {Metric:'Unmatched Bank Records', Value: state.bankLeftover.length},
-    ];
-    const ws3 = XLSX.utils.json_to_sheet(summaryRows);
-    XLSX.utils.book_append_sheet(wb, ws3, 'Summary');
-
-    XLSX.writeFile(wb, 'reconciliation-result.xlsx');
-  });
-
-  // ---------- EXPORT PDF ----------
-  document.getElementById('export-pdf').addEventListener('click', () => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({orientation:'landscape'});
-    const validMappings = state.mappings.filter(m => m.company && m.bank);
-
-    doc.setFontSize(16);
-    doc.text('ReconPro Lite — Reconciliation Report', 14, 16);
-    doc.setFontSize(10);
-    doc.text('Generated ' + new Date().toLocaleString(), 14, 22);
-
-    const total = state.results.length;
-    const exact = state.results.filter(r => r.status==='exact').length;
-    const partial = state.results.filter(r => r.status==='partial').length;
-    const unmatched = state.results.filter(r => r.status==='unmatched').length;
-    const rate = total ? Math.round(((exact+partial)/total)*100) : 0;
-
-    doc.text(`Total: ${total}   Exact: ${exact}   Partial: ${partial}   Unmatched: ${unmatched}   Match rate: ${rate}%`, 14, 29);
-
-    const head = [['Status','Score', ...validMappings.map(m=>m.company), ...validMappings.map(m=>m.bank + ' (bank)')]];
-    const body = state.results.map(r => [
-      r.status, r.score+'%',
-      ...validMappings.map(m => fmt(r.company[m.company])),
-      ...validMappings.map(m => r.bank ? fmt(r.bank[m.bank]) : '—')
-    ]);
-
-    doc.autoTable({ head, body, startY:34, styles:{fontSize:8}, headStyles:{fillColor:[27,36,48]} });
-    doc.save('reconciliation-report.pdf');
-  });
-
-  // ---------- UTIL ----------
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    renderMapRows();
+    updateRunButton();
   }
+}
+
+/* ═══════════════════════════════════════════════════
+   COLUMN MAPPING
+═══════════════════════════════════════════════════ */
+function addMapRow(companyVal, bankVal){
+  const id='m'+Math.random().toString(36).slice(2,9);
+  state.mappings.push({id, company:companyVal||'', bank:bankVal||''});
+  renderMapRows();
+}
+
+function renderMapRows(){
+  const wrap = document.getElementById('map-rows');
+  wrap.innerHTML='';
+  state.mappings.forEach((m,i)=>{
+    const row=document.createElement('div');
+    row.className='map-row';
+    row.style.animationDelay=(i*0.04)+'s';
+    row.innerHTML=`
+      <select data-id="${m.id}" data-side="company">${optHtml(state.companyHeaders,m.company,'Ledger column…')}</select>
+      <div class="map-arrow">⇌</div>
+      <select data-id="${m.id}" data-side="bank">${optHtml(state.bankHeaders,m.bank,'Bank column…')}</select>
+      <button class="map-remove" data-remove="${m.id}" type="button" aria-label="Remove">✕</button>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('select').forEach(sel=>{
+    sel.addEventListener('change',e=>{
+      const m=state.mappings.find(x=>x.id===e.target.dataset.id);
+      if(m) m[e.target.dataset.side]=e.target.value;
+      updateRunButton();
+    });
+  });
+  wrap.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      state.mappings=state.mappings.filter(x=>x.id!==e.target.closest('[data-remove]').dataset.remove);
+      renderMapRows(); updateRunButton();
+    });
+  });
+  updateRunButton();
+}
+
+function optHtml(headers, selected, placeholder){
+  let h=`<option value="">${esc(placeholder)}</option>`;
+  headers.forEach(x=>{ h+=`<option value="${esc(x)}" ${x===selected?'selected':''}>${esc(x)}</option>`; });
+  return h;
+}
+
+function normalizeHeader(h){ return String(h).toLowerCase().replace(/[^a-z0-9]/g,''); }
+function headerSim(a,b){
+  if(a===b) return 1;
+  if(a.length>2&&b.includes(a)) return 0.85;
+  if(b.length>2&&a.includes(b)) return 0.85;
+  // token overlap
+  const ta=a.match(/[a-z]+/g)||[], tb=b.match(/[a-z]+/g)||[];
+  const common=ta.filter(t=>tb.includes(t));
+  if(common.length) return common.length/Math.max(ta.length,tb.length)*0.7;
+  return 0;
+}
+
+function autoSuggestMappings(){
+  const used=new Set();
+  let firstSet=false;
+  const first=state.mappings[0];
+  state.companyHeaders.forEach(ch=>{
+    const nc=normalizeHeader(ch);
+    let best=null,bestScore=0;
+    state.bankHeaders.forEach(bh=>{
+      if(used.has(bh)) return;
+      const s=headerSim(nc,normalizeHeader(bh));
+      if(s>bestScore){ bestScore=s; best=bh; }
+    });
+    if(best&&bestScore>=0.5){
+      used.add(best);
+      if(!firstSet){ first.company=ch; first.bank=best; firstSet=true; }
+      else addMapRow(ch,best);
+    }
+  });
+  if(!firstSet&&state.companyHeaders.length&&state.bankHeaders.length){
+    first.company=state.companyHeaders[0];
+    first.bank=state.bankHeaders[0];
+  }
+}
+
+document.getElementById('add-map-row').addEventListener('click',()=>addMapRow());
+
+/* ═══════════════════════════════════════════════════
+   RUN BUTTON STATE
+═══════════════════════════════════════════════════ */
+function updateRunButton(){
+  const valid=state.mappings.filter(m=>m.company&&m.bank);
+  const ready=state.companyRows.length&&state.bankRows.length&&valid.length>0;
+  const btn=document.getElementById('run-btn');
+  const note=document.getElementById('run-note');
+  if(ready){
+    btn.classList.remove('step-disabled'); btn.disabled=false;
+    note.textContent=valid.length+' pair(s) · '+
+      state.companyRows.length.toLocaleString()+' ledger rows · '+
+      state.bankRows.length.toLocaleString()+' bank rows';
+  } else {
+    btn.classList.add('step-disabled'); btn.disabled=true;
+    note.textContent='Upload both files and configure at least one column pair to proceed';
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   RECONCILIATION ENGINE
+   ─────────────────────────────────────────────────
+   Results array contains THREE types of records:
+   1. exact       – all mapped fields match within tolerance
+   2. partial     – some (but not all) mapped fields match
+   3. ledger-only – company row, no bank counterpart found
+   4. bank-only   – bank row, no company counterpart found  ← NEW
+═══════════════════════════════════════════════════ */
+document.getElementById('run-btn').addEventListener('click', runRecon);
+
+function runRecon(){
+  const valid=state.mappings.filter(m=>m.company&&m.bank);
+  const tol=parseFloat(document.getElementById('tolerance').value)||0;
+
+  showLoader('Running reconciliation…');
+  setProgress(10);
+
+  // yield to browser so loader renders
+  setTimeout(()=>{
+    try{
+      const results = reconcile(valid, tol);
+      state.results = results;
+      setProgress(70);
+      renderKPIs();
+      setProgress(85);
+      renderResultsTable();
+      setProgress(100);
+      document.getElementById('step-kpi').style.display='';
+      document.getElementById('step-kpi').className='reveal';
+      document.getElementById('step-results').style.display='';
+      document.getElementById('step-results').className='reveal';
+      hideLoader();
+      document.getElementById('step-kpi').scrollIntoView({behavior:'smooth',block:'start'});
+      const bankOnly=results.filter(r=>r.status==='bank-only').length;
+      const ledgerOnly=results.filter(r=>r.status==='ledger-only').length;
+      toast(`✓ Done — ${bankOnly} bank-only and ${ledgerOnly} ledger-only entries flagged`);
+    } catch(err){
+      hideLoader();
+      toast('✗ Reconciliation error: '+err.message);
+      console.error(err);
+    }
+  },60);
+}
+
+function reconcile(valid, tol){
+  const nComp=state.companyRows.length;
+  const nBank=state.bankRows.length;
+
+  // Build all scored pairs (only where score>0)
+  const pairs=[];
+  for(let ci=0;ci<nComp;ci++){
+    for(let bi=0;bi<nBank;bi++){
+      let matched=0;
+      valid.forEach(m=>{
+        if(fieldsMatch(state.companyRows[ci][m.company], state.bankRows[bi][m.bank], tol)) matched++;
+      });
+      if(matched>0) pairs.push({ci,bi,score:matched/valid.length,matched});
+    }
+  }
+  // Sort best matches first
+  pairs.sort((a,b)=>b.score-a.score||b.matched-a.matched);
+
+  const compAssigned=new Array(nComp).fill(null);
+  const bankUsed    =new Array(nBank).fill(false);
+
+  pairs.forEach(p=>{
+    if(compAssigned[p.ci]===null&&!bankUsed[p.bi]){
+      compAssigned[p.ci]=p;
+      bankUsed[p.bi]=true;
+    }
+  });
+
+  const results=[];
+
+  // ── 1. Company rows (matched / ledger-only)
+  state.companyRows.forEach((crow,ci)=>{
+    const assign=compAssigned[ci];
+    const scorePct=assign?Math.round(assign.score*100):0;
+    let status='ledger-only';
+    if(assign&&scorePct===100) status='exact';
+    else if(assign&&scorePct>0) status='partial';
+    results.push({
+      source:'company',
+      company:crow,
+      bank:assign?state.bankRows[assign.bi]:null,
+      score:scorePct,
+      status
+    });
+  });
+
+  // ── 2. Bank-only rows (the crucial addition)
+  state.bankRows.forEach((brow,bi)=>{
+    if(!bankUsed[bi]){
+      results.push({
+        source:'bank',
+        company:null,
+        bank:brow,
+        score:0,
+        status:'bank-only'
+      });
+    }
+  });
+
+  return results;
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER KPI
+═══════════════════════════════════════════════════ */
+function renderKPIs(){
+  const r=state.results;
+  const total      = r.length;
+  const exact      = r.filter(x=>x.status==='exact').length;
+  const partial    = r.filter(x=>x.status==='partial').length;
+  const ledgerOnly = r.filter(x=>x.status==='ledger-only').length;
+  const bankOnly   = r.filter(x=>x.status==='bank-only').length;
+  const matchable  = total - bankOnly; // ledger rows only
+  const rate       = matchable ? Math.round(((exact+partial)/matchable)*100) : 0;
+
+  [['kpi-total',total,false],['kpi-exact',exact,false],
+   ['kpi-partial',partial,false],['kpi-ledger-only',ledgerOnly,false],
+   ['kpi-bank-only',bankOnly,false],['kpi-rate',rate,true]].forEach(([id,val,pct],i)=>{
+     setTimeout(()=>animateCount(document.getElementById(id),val,pct),i*55);
+   });
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER RESULTS TABLE
+═══════════════════════════════════════════════════ */
+function renderResultsTable(){
+  const valid=state.mappings.filter(m=>m.company&&m.bank);
+  const head=document.getElementById('results-head');
+
+  head.innerHTML=
+    '<th>Status</th><th>Score</th>'+
+    valid.map(m=>`<th class="col-ledger">${esc(m.company)}</th>`).join('')+
+    valid.map(m=>`<th class="col-bank">${esc(m.bank)} <span style="opacity:.5;font-weight:400">(bank)</span></th>`).join('');
+
+  renderResultsBody();
+
+  // wire up filter chips and search
+  document.querySelectorAll('.chip').forEach(chip=>{
+    chip.onclick=()=>{
+      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      state.activeFilter=chip.dataset.filter;
+      renderResultsBody();
+    };
+  });
+  document.getElementById('search-box').oninput=renderResultsBody;
+}
+
+function renderResultsBody(){
+  const valid=state.mappings.filter(m=>m.company&&m.bank);
+  const tol=parseFloat(document.getElementById('tolerance').value)||0;
+  const body=document.getElementById('results-body');
+  const term=document.getElementById('search-box').value.trim().toLowerCase();
+
+  let rows=state.results.filter(r=>{
+    if(state.activeFilter!=='all'&&r.status!==state.activeFilter) return false;
+    if(!term) return true;
+    return (JSON.stringify(r.company||{})+JSON.stringify(r.bank||{})).toLowerCase().includes(term);
+  });
+
+  if(!rows.length){
+    body.innerHTML=`<tr><td colspan="${2+valid.length*2}">
+      <div class="empty-state">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        No records match the current filter or search.
+      </div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML=rows.map(r=>{
+    const stampCls=r.status;
+    const stampLabel={
+      'exact':'Exact','partial':'Partial',
+      'ledger-only':'Ledger Only','bank-only':'Bank Only'
+    }[r.status]||r.status;
+
+    const scoreCell=r.status==='bank-only'||r.status==='ledger-only'
+      ? `<span style="color:var(--ink-faint)">—</span>`
+      : `${r.score}%`;
+
+    const companyCells=valid.map(m=>{
+      const val=r.company?fmt(r.company[m.company]):'';
+      return r.company
+        ? `<td>${esc(val)}</td>`
+        : `<td class="cell-na">—</td>`;
+    }).join('');
+
+    const bankCells=valid.map(m=>{
+      if(!r.bank) return `<td class="cell-na">—</td>`;
+      const bv=r.bank[m.bank];
+      const cv=r.company?r.company[m.company]:null;
+      const mismatch=r.company&&!fieldsMatch(cv,bv,tol);
+      return `<td class="${mismatch?'cell-mismatch':''}">${esc(fmt(bv))}</td>`;
+    }).join('');
+
+    return `<tr>
+      <td><span class="stamp ${stampCls}">${stampLabel}</span></td>
+      <td style="color:var(--ink-soft)">${scoreCell}</td>
+      ${companyCells}${bankCells}
+    </tr>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════════ */
+document.getElementById('reset-btn').addEventListener('click',()=>{
+  if(!confirm('Start over? All results will be cleared.')) return;
+  state.companyRows=[];state.companyHeaders=[];
+  state.bankRows=[];state.bankHeaders=[];
+  state.mappings=[];state.results=[];state.activeFilter='all';
+  ['dz-company','dz-bank'].forEach(id=>document.getElementById(id).classList.remove('loaded'));
+  document.getElementById('dz-company-name').textContent='';
+  document.getElementById('dz-bank-name').textContent='';
+  document.getElementById('file-company').value='';
+  document.getElementById('file-bank').value='';
+  document.getElementById('map-rows').innerHTML='';
+  document.getElementById('step-mapping').classList.add('step-disabled');
+  document.getElementById('run-btn').classList.add('step-disabled');
+  document.getElementById('step-kpi').style.display='none';
+  document.getElementById('step-results').style.display='none';
+  document.getElementById('search-box').value='';
+  document.querySelectorAll('.chip').forEach((c,i)=>{ c.classList.toggle('active',i===0); });
+  updateRunButton();
+  toast('Session cleared. Upload new files to begin.');
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+/* ═══════════════════════════════════════════════════
+   EXPORT — EXCEL
+═══════════════════════════════════════════════════ */
+document.getElementById('export-excel').addEventListener('click',()=>{
+  showLoader('Building Excel file…');
+  setTimeout(()=>{
+    try{
+      const wb=XLSX.utils.book_new();
+
+      // Sheet 1: All results
+      const exportRows=state.results.map(r=>{
+        const row={'Match Status':r.status,'Match Score':r.status==='bank-only'||r.status==='ledger-only'?'—':r.score+'%'};
+        state.companyHeaders.forEach(h=>row['Ledger: '+h]=r.company?fmt(r.company[h]):'');
+        state.bankHeaders.forEach(h=>row['Bank: '+h]=r.bank?fmt(r.bank[h]):'');
+        return row;
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows),'All Records');
+
+      // Sheet 2: Exact
+      const exact=state.results.filter(r=>r.status==='exact');
+      if(exact.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(exact.map(r=>{
+        const row={};
+        state.companyHeaders.forEach(h=>row['Ledger: '+h]=r.company?fmt(r.company[h]):'');
+        state.bankHeaders.forEach(h=>row['Bank: '+h]=r.bank?fmt(r.bank[h]):'');
+        return row;
+      })),'Exact Matches');
+
+      // Sheet 3: Partial
+      const partial=state.results.filter(r=>r.status==='partial');
+      if(partial.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(partial.map(r=>{
+        const row={};
+        state.companyHeaders.forEach(h=>row['Ledger: '+h]=r.company?fmt(r.company[h]):'');
+        state.bankHeaders.forEach(h=>row['Bank: '+h]=r.bank?fmt(r.bank[h]):'');
+        return row;
+      })),'Partial Matches');
+
+      // Sheet 4: Ledger Only
+      const lo=state.results.filter(r=>r.status==='ledger-only');
+      if(lo.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lo.map(r=>{
+        const row={};
+        state.companyHeaders.forEach(h=>row[h]=r.company?fmt(r.company[h]):'');
+        return row;
+      })),'Ledger Only');
+
+      // Sheet 5: Bank Only  ← new
+      const bo=state.results.filter(r=>r.status==='bank-only');
+      if(bo.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(bo.map(r=>{
+        const row={};
+        state.bankHeaders.forEach(h=>row[h]=r.bank?fmt(r.bank[h]):'');
+        return row;
+      })),'Bank Only');
+
+      // Sheet 6: Summary
+      const r=state.results;
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([
+        {Metric:'Total Records',         Value:r.length},
+        {Metric:'Exact Matches',         Value:r.filter(x=>x.status==='exact').length},
+        {Metric:'Partial Matches',       Value:r.filter(x=>x.status==='partial').length},
+        {Metric:'Ledger-Only Records',   Value:r.filter(x=>x.status==='ledger-only').length},
+        {Metric:'Bank-Only Records',     Value:r.filter(x=>x.status==='bank-only').length},
+      ]),'Summary');
+
+      XLSX.writeFile(wb,'reconpro-results.xlsx');
+      hideLoader();
+      toast('✓ Excel exported successfully');
+    } catch(err){
+      hideLoader();
+      toast('✗ Export failed: '+err.message);
+    }
+  },60);
+});
+
+/* ═══════════════════════════════════════════════════
+   EXPORT — PDF
+═══════════════════════════════════════════════════ */
+document.getElementById('export-pdf').addEventListener('click',()=>{
+  showLoader('Generating PDF…');
+  setTimeout(()=>{
+    try{
+      const {jsPDF}=window.jspdf;
+      const doc=new jsPDF({orientation:'landscape'});
+      const valid=state.mappings.filter(m=>m.company&&m.bank);
+      const r=state.results;
+      const exact=r.filter(x=>x.status==='exact').length;
+      const partial=r.filter(x=>x.status==='partial').length;
+      const lo=r.filter(x=>x.status==='ledger-only').length;
+      const bo=r.filter(x=>x.status==='bank-only').length;
+      const matchable=r.length-bo;
+      const rate=matchable?Math.round(((exact+partial)/matchable)*100):0;
+
+      // Header
+      doc.setFillColor(27,36,48); doc.rect(0,0,297,22,'F');
+      doc.setTextColor(255,255,255); doc.setFontSize(13); doc.setFont('helvetica','bold');
+      doc.text('ReconPro Lite — Reconciliation Report',14,14);
+      doc.setFontSize(8); doc.setFont('helvetica','normal');
+      doc.text('Generated: '+new Date().toLocaleString(),250,14,'right');
+
+      // Summary bar
+      doc.setTextColor(27,36,48); doc.setFontSize(9);
+      doc.text(`Total: ${r.length}   Exact: ${exact}   Partial: ${partial}   Ledger-Only: ${lo}   Bank-Only: ${bo}   Match Rate: ${rate}%`,14,30);
+
+      // Table
+      const head=[['Status','Score',...valid.map(m=>m.company),...valid.map(m=>m.bank+' (bank)')]];
+      const body=r.map(row=>[
+        row.status,
+        (row.status==='bank-only'||row.status==='ledger-only')?'—':row.score+'%',
+        ...valid.map(m=>row.company?fmt(row.company[m.company]):'—'),
+        ...valid.map(m=>row.bank?fmt(row.bank[m.bank]):'—')
+      ]);
+
+      const statusColors={
+        'exact':[31,111,92],
+        'partial':[184,134,46],
+        'ledger-only':[45,95,168],
+        'bank-only':[91,63,168]
+      };
+
+      doc.autoTable({
+        head, body,
+        startY:36,
+        styles:{fontSize:7,cellPadding:3,overflow:'ellipsize'},
+        headStyles:{fillColor:[27,36,48],textColor:[255,255,255],fontStyle:'bold'},
+        bodyStyles:{textColor:[27,36,48]},
+        alternateRowStyles:{fillColor:[250,249,245]},
+        didParseCell(data){
+          if(data.section==='body'&&data.column.index===0){
+            const s=data.cell.raw;
+            const c=statusColors[s];
+            if(c) data.cell.styles.textColor=c;
+          }
+        }
+      });
+
+      doc.save('reconpro-report.pdf');
+      hideLoader();
+      toast('✓ PDF exported successfully');
+    } catch(err){
+      hideLoader();
+      toast('✗ PDF export failed: '+err.message);
+      console.error(err);
+    }
+  },60);
+});
 
 })();
 </script>
 </body>
-</html>
+</html
